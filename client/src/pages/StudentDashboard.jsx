@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BarChart3, CalendarClock, CalendarDays, CheckCircle2, Pencil, Play, Star, Trash2, XCircle } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useToast } from '../context/ToastContext.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -12,19 +13,62 @@ import BookingDetailsModal from '../components/BookingDetailsModal.jsx';
 import { formatDate, formatTime, todayInZone, buildSlotStarts } from '../utils/time.js';
 import { BOOKING_STATUS_STYLE } from '../utils/status.js';
 
-function StatCard({ icon, label, value, iconCls = 'from-blue-600 to-indigo-600' }) {
+/** Labels shown in the "Showing: …" line above the list, one per stat-card filter. */
+const FILTER_LABELS = {
+  all: 'All sessions',
+  upcoming: 'Upcoming sessions',
+  completed: 'Completed sessions',
+  cancelled: 'Cancelled sessions',
+};
+
+/** Empty-state icons per stat-card filter. */
+const EMPTY_ICONS = { all: CalendarDays, upcoming: CalendarClock, completed: CheckCircle2, cancelled: XCircle };
+
+/** True when a booking's start (local date + start time) is still in the future in its own timezone. */
+function bookingStartsInFuture(b) {
+  if (!b.date || !b.startTime) return false;
+  const tz = b.timeZone || 'Asia/Kolkata';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type)?.value || '';
+  const nowStr = `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+  return `${b.date}T${b.startTime}` >= nowStr;
+}
+
+/** "Upcoming sessions" rule: confirmed AND the session start time is still in the future. */
+function isUpcomingBooking(b) {
+  return b.status === 'confirmed' && bookingStartsInFuture(b);
+}
+
+function StatCard({ icon: Icon, label, value, iconCls = 'from-blue-600 to-indigo-600', active = false, onClick }) {
   return (
-    <div className="card group p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`card group w-full cursor-pointer p-5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 ${
+        active
+          ? '-translate-y-0.5 border-indigo-500 shadow-lg shadow-indigo-600/20 ring-2 ring-indigo-500/30'
+          : 'hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md'
+      }`}
+    >
       <div className="flex items-center justify-between">
         <span
-          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${iconCls} text-lg shadow-md transition-transform duration-200 group-hover:scale-110`}
+          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${iconCls} shadow-md transition-transform duration-200 group-hover:scale-110`}
         >
-          {icon}
+          <Icon className="h-5 w-5 text-white" strokeWidth={2.2} />
         </span>
         <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</span>
       </div>
       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</p>
-    </div>
+    </button>
   );
 }
 
@@ -60,6 +104,7 @@ export default function StudentDashboard() {
   const [q, setQ] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all'); // stat-card filter: all | upcoming | completed | cancelled
 
   const loadBookings = useCallback(async () => {
     setLoading(true);
@@ -170,14 +215,14 @@ export default function StudentDashboard() {
     try {
       if (editingReview) {
         await client.patch(`/reviews/${editingReview._id}`, { rating, comment });
-        toast('Review updated! ⭐');
+        toast('Review updated!');
       } else {
         await client.post('/reviews', {
           bookingId: reviewTarget._id,
           rating,
           comment,
         });
-        toast('Thanks for your review! ⭐');
+        toast('Thanks for your review!');
       }
       setReviewTarget(null);
       setEditingReview(null);
@@ -205,21 +250,34 @@ export default function StudentDashboard() {
     }
   };
 
-  const totalBookings = upcoming.length + past.length;
-  const completedCount = past.filter((b) => b.status === 'completed').length;
-  const cancelledCount = past.filter((b) => b.status === 'cancelled').length;
+  const allBookings = [...upcoming, ...past];
+  const totalBookings = allBookings.length;
+  const upcomingCount = allBookings.filter(isUpcomingBooking).length;
+  const completedCount = allBookings.filter((b) => b.status === 'completed').length;
+  const cancelledCount = allBookings.filter((b) => b.status === 'cancelled').length;
 
   const list = activeTab === 'upcoming' ? upcoming : past;
+  // Counts shown in the "Showing: …" line always describe the current tab's list.
+  const filterCounts = {
+    all: list.length,
+    upcoming: list.filter(isUpcomingBooking).length,
+    completed: list.filter((b) => b.status === 'completed').length,
+    cancelled: list.filter((b) => b.status === 'cancelled').length,
+  };
   const filtered = useMemo(
     () =>
       list.filter((b) => {
+        // Stat-card filter first; search/date/status filters compose on top of it.
+        if (activeFilter === 'upcoming' && !isUpcomingBooking(b)) return false;
+        if (activeFilter === 'completed' && b.status !== 'completed') return false;
+        if (activeFilter === 'cancelled' && b.status !== 'cancelled') return false;
         const name = (b.mentor?.name || '').toLowerCase();
         if (q.trim() && !name.includes(q.trim().toLowerCase())) return false;
         if (dateFilter && b.date !== dateFilter) return false;
         if (statusFilter && b.status !== statusFilter) return false;
         return true;
       }),
-    [list, q, dateFilter, statusFilter]
+    [list, activeFilter, q, dateFilter, statusFilter]
   );
 
   const hasFilters = q.trim() || dateFilter || statusFilter;
@@ -227,6 +285,21 @@ export default function StudentDashboard() {
     setQ('');
     setDateFilter('');
     setStatusFilter('');
+    setActiveFilter('all');
+  };
+
+  /** Manual tab click: switch the bucket and reset the stat-card filter. */
+  const handleTab = (tab) => {
+    setActiveTab(tab);
+    setActiveFilter('all');
+  };
+
+  /** Stat-card click: apply its filter and auto-switch to the matching tab. */
+  const selectFilter = (f) => {
+    const next = activeFilter === f && f !== 'all' ? 'all' : f;
+    setActiveFilter(next);
+    if (next === 'upcoming') setActiveTab('upcoming');
+    else if (next === 'completed' || next === 'cancelled') setActiveTab('past');
   };
 
   return (
@@ -239,7 +312,7 @@ export default function StudentDashboard() {
           <p className="mt-1 text-slate-500 dark:text-slate-400">Manage your bookings, join meetings and leave reviews.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn-secondary" onClick={() => setActiveTab(activeTab === 'upcoming' ? 'past' : 'upcoming')}>
+          <button className="btn-secondary" onClick={() => handleTab(activeTab === 'upcoming' ? 'past' : 'upcoming')}>
             {activeTab === 'upcoming' ? 'View past' : 'View upcoming'}
           </button>
           <Link to="/mentors" className="btn-primary">Find more mentors</Link>
@@ -255,10 +328,10 @@ export default function StudentDashboard() {
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard icon="📊" label="Total bookings" value={totalBookings} />
-          <StatCard icon="📅" label="Upcoming sessions" value={upcoming.length} iconCls="from-indigo-600 to-blue-600" />
-          <StatCard icon="✅" label="Completed" value={completedCount} iconCls="from-emerald-500 to-teal-500" />
-          <StatCard icon="❌" label="Cancelled" value={cancelledCount} iconCls="from-rose-500 to-pink-500" />
+          <StatCard icon={BarChart3} label="Total bookings" value={totalBookings} active={activeFilter === 'all'} onClick={() => selectFilter('all')} />
+          <StatCard icon={CalendarClock} label="Upcoming sessions" value={upcomingCount} iconCls="from-indigo-600 to-blue-600" active={activeFilter === 'upcoming'} onClick={() => selectFilter('upcoming')} />
+          <StatCard icon={CheckCircle2} label="Completed" value={completedCount} iconCls="from-emerald-500 to-teal-500" active={activeFilter === 'completed'} onClick={() => selectFilter('completed')} />
+          <StatCard icon={XCircle} label="Cancelled" value={cancelledCount} iconCls="from-rose-500 to-pink-500" active={activeFilter === 'cancelled'} onClick={() => selectFilter('cancelled')} />
         </div>
       )}
 
@@ -268,7 +341,7 @@ export default function StudentDashboard() {
           {['upcoming', 'past'].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTab(tab)}
               className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold capitalize transition-all duration-200 ${
                 activeTab === tab
                   ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/25'
@@ -330,91 +403,120 @@ export default function StudentDashboard() {
             <SkeletonCard key={i} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState
-            icon="📅"
-            title={hasFilters ? 'No matching sessions' : activeTab === 'upcoming' ? 'No upcoming sessions' : 'No past sessions'}
-            subtitle={
-              hasFilters
-                ? 'Try adjusting your search or filters.'
-                : activeTab === 'upcoming'
-                ? 'Browse mentors and book your first session today!'
-                : 'Your completed and cancelled sessions will appear here.'
-            }
-            action={
-              hasFilters ? (
-                <button className="btn-secondary" onClick={clearFilters}>Clear filters</button>
-              ) : activeTab === 'upcoming' ? (
-                <Link to="/mentors" className="btn-primary">Browse mentors</Link>
-              ) : null
-            }
-          />
-        </div>
       ) : (
-        <div className="mt-6 space-y-4">
-          {filtered.map((b) => (
-            <div
-              key={b._id}
-              className="group card flex flex-col gap-4 p-5 transition-all duration-200 hover:border-indigo-200 hover:shadow-md sm:flex-row sm:items-center"
-            >
-              <Link to={`/mentors/${b.mentor._id}`} className="flex items-center gap-3 sm:min-w-[230px]">
-                <Avatar name={b.mentor.name} src={b.mentor.avatar} size="md" />
-                <div>
-                  <p className="font-bold text-slate-900 transition group-hover:text-indigo-700 dark:text-slate-100">{b.mentor.name}</p>
-                  <p className="text-xs text-slate-400">Mentor</p>
-                </div>
-              </Link>
-              <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
-                <p className="font-semibold text-slate-800 dark:text-slate-100">
-                  {formatDate(b.date)} · {formatTime(b.startTime)} – {formatTime(b.endTime)}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-                  Sessions: {b.rescheduleCount > 0 ? `rescheduled ${b.rescheduleCount}×` : 'original time'}
-                </p>
-                {b.notes && <p className="mt-1 truncate text-xs italic text-slate-400 dark:text-slate-500">"{b.notes}"</p>}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                {b.status === 'confirmed' && (
-                  <>
-                    {b.meetLink && (
-                      <a href={b.meetLink} target="_blank" rel="noreferrer" className="btn-primary !py-2">
-                        <span className="text-xs">▶</span> Join Meet
-                      </a>
-                    )}
-                    <button className="btn-secondary !py-2" onClick={() => openReschedule(b)}>Reschedule</button>
-                    <button className="btn-danger !py-2" onClick={() => setCancelTarget(b)}>Cancel</button>
-                  </>
-                )}
-                {b.status === 'completed' &&
-                  (reviewFor(b._id) ? (
-                    <>
-                      <div className="flex items-center gap-1.5 rounded-lg border border-amber-100 bg-amber-50/80 px-2.5 py-1.5 dark:border-amber-500/30 dark:bg-amber-500/10">
-                        <StarRating value={reviewFor(b._id).rating} size="text-sm" />
-                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300">Reviewed</span>
-                      </div>
-                      <button className="btn-secondary !py-2" onClick={() => openEditReview(b, reviewFor(b._id))}>
-                        ✏️ Edit review
-                      </button>
-                      <button
-                        className="btn-danger !py-2"
-                        onClick={() => setDeleteReviewTarget(reviewFor(b._id))}
-                        title="Delete review"
-                      >
-                        🗑 Delete
-                      </button>
-                    </>
-                  ) : (
-                    <button className="btn-primary !py-2" onClick={() => openWriteReview(b)}>⭐ Write review</button>
-                  ))}
-                <button className="btn-ghost !px-3 !py-2 text-sm" onClick={() => setDetailsTarget(b)}>
-                  Details
-                </button>
-                <span className={`chip ${BOOKING_STATUS_STYLE[b.status] || ''}`}>{b.status}</span>
-              </div>
+        <>
+          <p aria-live="polite" className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+            Showing:{' '}
+            <span className="font-semibold text-slate-700 dark:text-slate-200">{FILTER_LABELS[activeFilter]}</span>{' '}
+            <span className="font-bold text-slate-900 dark:text-white">({filterCounts[activeFilter]})</span>
+          </p>
+          {filtered.length === 0 ? (
+            <div className="mt-4">
+              <EmptyState
+                icon={EMPTY_ICONS[activeFilter]}
+                title={
+                  hasFilters
+                    ? 'No matching sessions'
+                    : activeFilter === 'completed'
+                    ? 'No completed sessions yet.'
+                    : activeFilter === 'cancelled'
+                    ? 'No cancelled sessions.'
+                    : activeFilter === 'upcoming'
+                    ? 'No upcoming sessions yet.'
+                    : activeTab === 'upcoming'
+                    ? 'No upcoming sessions'
+                    : 'No past sessions'
+                }
+                subtitle={
+                  hasFilters
+                    ? 'Try adjusting your search or filters.'
+                    : activeFilter === 'completed'
+                    ? 'Sessions your mentors complete will appear here.'
+                    : activeFilter === 'cancelled'
+                    ? 'Sessions you cancel will appear here.'
+                    : activeFilter === 'upcoming'
+                    ? 'Book a session with a mentor to see it here.'
+                    : activeTab === 'upcoming'
+                    ? 'Browse mentors and book your first session today!'
+                    : 'Your completed and cancelled sessions will appear here.'
+                }
+                action={
+                  hasFilters ? (
+                    <button className="btn-secondary" onClick={clearFilters}>Clear filters</button>
+                  ) : activeTab === 'upcoming' ? (
+                    <Link to="/mentors" className="btn-primary">Browse mentors</Link>
+                  ) : null
+                }
+              />
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {filtered.map((b) => (
+                <div
+                  key={b._id}
+                  className="group card flex flex-col gap-4 p-5 transition-all duration-200 hover:border-indigo-200 hover:shadow-md sm:flex-row sm:items-center"
+                >
+                  <Link to={`/mentors/${b.mentor._id}`} className="flex items-center gap-3 sm:min-w-[230px]">
+                    <Avatar name={b.mentor.name} src={b.mentor.avatar} size="md" />
+                    <div>
+                      <p className="font-bold text-slate-900 transition group-hover:text-indigo-700 dark:text-slate-100">{b.mentor.name}</p>
+                      <p className="text-xs text-slate-400">Mentor</p>
+                    </div>
+                  </Link>
+                  <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
+                    <p className="font-semibold text-slate-800 dark:text-slate-100">
+                      {formatDate(b.date)} · {formatTime(b.startTime)} – {formatTime(b.endTime)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                      Sessions: {b.rescheduleCount > 0 ? `rescheduled ${b.rescheduleCount}×` : 'original time'}
+                    </p>
+                    {b.notes && <p className="mt-1 truncate text-xs italic text-slate-400 dark:text-slate-500">"{b.notes}"</p>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {b.status === 'confirmed' && (
+                      <>
+                        {b.meetLink && (
+                          <a href={b.meetLink} target="_blank" rel="noreferrer" className="btn-primary !py-2">
+                            <Play className="h-3.5 w-3.5" /> Join Meet
+                          </a>
+                        )}
+                        <button className="btn-secondary !py-2" onClick={() => openReschedule(b)}>Reschedule</button>
+                        <button className="btn-danger !py-2" onClick={() => setCancelTarget(b)}>Cancel</button>
+                      </>
+                    )}
+                    {b.status === 'completed' &&
+                      (reviewFor(b._id) ? (
+                        <>
+                          <div className="flex items-center gap-1.5 rounded-lg border border-amber-100 bg-amber-50/80 px-2.5 py-1.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+                            <StarRating value={reviewFor(b._id).rating} size="text-sm" />
+                            <span className="text-xs font-bold text-amber-700 dark:text-amber-300">Reviewed</span>
+                          </div>
+                          <button className="btn-secondary !py-2" onClick={() => openEditReview(b, reviewFor(b._id))}>
+                            <Pencil className="h-3.5 w-3.5" /> Edit review
+                          </button>
+                          <button
+                            className="btn-danger !py-2"
+                            onClick={() => setDeleteReviewTarget(reviewFor(b._id))}
+                            title="Delete review"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </button>
+                        </>
+                      ) : (
+                        <button className="btn-primary !py-2" onClick={() => openWriteReview(b)}>
+                          <Star className="h-3.5 w-3.5" /> Write review
+                        </button>
+                      ))}
+                    <button className="btn-ghost !px-3 !py-2 text-sm" onClick={() => setDetailsTarget(b)}>
+                      Details
+                    </button>
+                    <span className={`chip ${BOOKING_STATUS_STYLE[b.status] || ''}`}>{b.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Cancel confirmation (custom modal with reason input) */}

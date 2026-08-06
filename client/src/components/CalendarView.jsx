@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import client from '../api/client.js';
 import { todayInZone, buildSlotStarts, formatDate } from '../utils/time.js';
 
@@ -94,11 +95,11 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
           disabled={prevDisabled}
           aria-label="Previous month"
         >
-          ←
+          <ChevronLeft className="h-4 w-4" />
         </button>
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{monthLabel}</p>
         <button className="btn-ghost !px-2.5 !py-1.5 text-sm" onClick={() => goMonth(1)} aria-label="Next month">
-          →
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 

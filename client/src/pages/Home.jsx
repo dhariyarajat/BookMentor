@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
+import { ArrowRight, Bell, CalendarDays, ShieldCheck, Star, Video, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const FEATURES = [
-  { icon: '🗓️', title: 'Flexible Availability', desc: 'Mentors set today\u2019s free hours or a recurring weekly schedule in one click.' },
-  { icon: '⚡', title: 'Instant Booking', desc: 'See live free slots and book in seconds. First come, first served — no double bookings.' },
-  { icon: '📅', title: 'Google Meet, Auto-linked', desc: 'Every session gets a Google Meet link automatically so you can just join.' },
-  { icon: '🔔', title: 'Smart Reminders', desc: 'Email confirmations, reschedule alerts and session reminders for both sides.' },
-  { icon: '⭐', title: 'Ratings & Reviews', desc: 'Rate your mentor after each session and help others choose better.' },
-  { icon: '🛡️', title: 'Trusted & Approved', desc: 'Mentors are vetted by admins. Cancel or reschedule anytime with transparency.' },
+  { icon: CalendarDays, title: 'Flexible Availability', desc: 'Mentors set today\u2019s free hours or a recurring weekly schedule in one click.' },
+  { icon: Zap, title: 'Instant Booking', desc: 'See live free slots and book in seconds. First come, first served — no double bookings.' },
+  { icon: Video, title: 'Google Meet, Auto-linked', desc: 'Every session gets a Google Meet link automatically so you can just join.' },
+  { icon: Bell, title: 'Smart Reminders', desc: 'Email confirmations, reschedule alerts and session reminders for both sides.' },
+  { icon: Star, title: 'Ratings & Reviews', desc: 'Rate your mentor after each session and help others choose better.' },
+  { icon: ShieldCheck, title: 'Trusted & Approved', desc: 'Mentors are vetted by admins. Cancel or reschedule anytime with transparency.' },
 ];
 
 const STEPS = [
@@ -55,7 +56,8 @@ export default function Home() {
                   to={user.role === 'mentor' ? '/mentor' : '/mentors'}
                   className="btn bg-white !px-8 !py-3 !text-base text-indigo-700 shadow-lg shadow-indigo-900/30 hover:bg-blue-50 hover:shadow-xl"
                 >
-                  {user.role === 'mentor' ? 'Open your dashboard' : 'Find a mentor'} →
+                  {user.role === 'mentor' ? 'Open your dashboard' : 'Find a mentor'}
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Link>
               ) : (
                 <>
@@ -109,8 +111,8 @@ export default function Home() {
               className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-600/10 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/40"
             >
               <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:from-indigo-500/10 dark:to-blue-500/10" />
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-2xl shadow-md shadow-indigo-600/25 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110">
-                {f.icon}
+              <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md shadow-indigo-600/25 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110">
+                <f.icon className="h-6 w-6 text-white" />
               </div>
               <h3 className="relative mt-4 text-lg font-bold text-slate-900 dark:text-white">{f.title}</h3>
               <p className="relative mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{f.desc}</p>

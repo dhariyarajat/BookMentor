@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { KeyRound, MailCheck } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useToast } from '../context/ToastContext.jsx';
 import FloatingInput from '../components/FloatingInput.jsx';
@@ -37,7 +38,9 @@ export default function ForgotPassword() {
         {/* Gradient header */}
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-800 px-8 py-8 text-center text-white">
           <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl backdrop-blur">🔑</div>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+            <KeyRound className="h-6 w-6 text-white" />
+          </div>
           <h1 className="mt-4 text-2xl font-extrabold tracking-tight">
             {sent ? 'Check your inbox' : 'Forgot password?'}
           </h1>
@@ -51,8 +54,8 @@ export default function ForgotPassword() {
         <div className="p-7 sm:p-8">
           {sent ? (
             <div className="text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl dark:bg-emerald-500/10">
-                📬
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10">
+                <MailCheck className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 We sent a reset link to <strong className="text-slate-700 dark:text-slate-200">{email.trim()}</strong>.

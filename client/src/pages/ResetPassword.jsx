@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { LockKeyhole } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useToast } from '../context/ToastContext.jsx';
 import FloatingInput from '../components/FloatingInput.jsx';
@@ -31,7 +32,7 @@ export default function ResetPassword() {
         password: form.password,
         confirmPassword: form.confirm,
       });
-      toast('Password reset successful! Log in with your new password. 🔐');
+      toast('Password reset successful! Log in with your new password.');
       navigate('/login');
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -49,7 +50,9 @@ export default function ResetPassword() {
         {/* Gradient header */}
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-800 px-8 py-8 text-center text-white">
           <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl backdrop-blur">🔐</div>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+            <LockKeyhole className="h-6 w-6 text-white" />
+          </div>
           <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Set a new password</h1>
           <p className="mx-auto mt-1.5 max-w-xs text-sm text-indigo-100">
             Choose a strong password you haven’t used before. Minimum 6 characters.

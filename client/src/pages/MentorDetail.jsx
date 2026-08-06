@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Briefcase, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Star, TrendingUp, User } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -131,7 +132,7 @@ export default function MentorDetail() {
   if (!mentor) {
     return (
       <EmptyState
-        icon="👤"
+        icon={User}
         title="Mentor not found"
         subtitle="This mentor may have been removed."
         action={<Link to="/mentors" className="btn-secondary">Browse mentors</Link>}
@@ -180,19 +181,13 @@ export default function MentorDetail() {
                 <span className="font-semibold text-slate-700 dark:text-slate-200">{mentor.ratingAvg.toFixed(1)}</span>
                 <span>({mentor.ratingCount} reviews)</span>
               </span>
-              <span className="flex items-center gap-1.5">💼 {mentor.experienceYears} yrs experience</span>
-              <span className="flex items-center gap-1.5">📍 {mentor.location || 'Remote'}</span>
-              <span className="flex items-center gap-1.5">⏱️ {mentor.sessionDuration} min sessions</span>
+              <span className="flex items-center gap-1.5"><Briefcase className="h-4 w-4" /> {mentor.experienceYears} yrs experience</span>
+              <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {mentor.location || 'Remote'}</span>
+              <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {mentor.sessionDuration} min sessions</span>
               {typeof mentor.totalSessions === 'number' && (
-                <span className="flex items-center gap-1.5">📈 {mentor.totalSessions} sessions</span>
+                <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4" /> {mentor.totalSessions} sessions</span>
               )}
             </div>
-          </div>
-          <div className="shrink-0 rounded-2xl border border-indigo-100 bg-gradient-to-br from-blue-50 to-indigo-50 px-7 py-5 text-center shadow-sm dark:border-indigo-500/30 dark:from-indigo-500/10 dark:to-blue-500/10">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-3xl font-extrabold text-transparent">
-              ₹{mentor.hourlyRate}
-            </div>
-            <div className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">per hour</div>
           </div>
         </div>
         <div className="border-t border-slate-100 px-6 py-6 sm:px-8 dark:border-slate-800">
@@ -243,13 +238,13 @@ export default function MentorDetail() {
                 disabled={date <= todayInZone(mentor.timeZone)}
                 aria-label="Previous day"
               >
-                ←
+                <ChevronLeft className="h-4 w-4" />
               </button>
               <span className="min-w-[130px] text-center text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {dateLabel}
               </span>
               <button className="btn-ghost !px-3 !py-2 text-sm" onClick={() => setDate(addDays(date, 1, mentor.timeZone))} aria-label="Next day">
-                →
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -269,7 +264,7 @@ export default function MentorDetail() {
             <Spinner className="h-6 w-6" />
           ) : slotStarts.length === 0 ? (
             <EmptyState
-              icon="🗓️"
+              icon={CalendarDays}
               title="No free slots"
               subtitle={`${mentor.name.split(' ')[0]} has no free slots on ${dateLabel}. Try another day.`}
             />
@@ -333,7 +328,10 @@ export default function MentorDetail() {
                 const pct = Math.round((d.count / reviewStats.count) * 100);
                 return (
                   <div key={d.rating} className="flex items-center gap-2 text-xs" title={`${pct}%`}>
-                    <span className="w-7 shrink-0 font-semibold text-slate-500 dark:text-slate-400">{d.rating}★</span>
+                    <span className="flex w-8 shrink-0 items-center gap-0.5 font-semibold text-slate-500 dark:text-slate-400">
+                      {d.rating}
+                      <Star className="h-3 w-3 fill-current" />
+                    </span>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
@@ -364,11 +362,12 @@ export default function MentorDetail() {
         <Modal open={showModal} title="Confirm booking" onClose={() => setShowModal(false)} size="md">
           <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50 p-4 text-sm dark:border-indigo-500/30 dark:from-indigo-500/10 dark:to-blue-500/10">
             <p className="font-semibold text-indigo-800 dark:text-indigo-300">{mentor.name}</p>
-            <p className="mt-1.5 text-slate-600 dark:text-slate-300">
-              📅 {dateLabel} · {formatTime(selected)} – {formatTime(addMinutes(selected, mentor.sessionDuration))}
+            <p className="mt-1.5 flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+              <CalendarDays className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+              {dateLabel} · {formatTime(selected)} – {formatTime(addMinutes(selected, mentor.sessionDuration))}
             </p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Session duration: {mentor.sessionDuration} min · ₹{mentor.hourlyRate}/hr
+              Session duration: {mentor.sessionDuration} min
             </p>
           </div>
           <label className="label mt-4">Notes for the mentor (optional)</label>

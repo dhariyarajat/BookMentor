@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, TriangleAlert } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EXPERTISE_TAGS } from '../data/expertise.js';
@@ -99,8 +100,6 @@ export default function BrowseMentors() {
           <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} className="input !w-auto">
             <option value="rating">Top rated</option>
             <option value="experience">Most experienced</option>
-            <option value="rate_low">Fee: low to high</option>
-            <option value="rate_high">Fee: high to low</option>
             <option value="newest">Newest</option>
           </select>
           <select value={minRating} onChange={(e) => { setMinRating(Number(e.target.value)); setPage(1); }} className="input !w-auto">
@@ -170,12 +169,12 @@ export default function BrowseMentors() {
         </div>
       ) : error ? (
         <div className="mt-8">
-          <EmptyState icon="⚠️" title="Something went wrong" subtitle={error} />
+          <EmptyState icon={TriangleAlert} title="Something went wrong" subtitle={error} />
         </div>
       ) : mentors.length === 0 ? (
         <div className="mt-8">
           <EmptyState
-            icon="🔍"
+            icon={Search}
             title="No mentors found"
             subtitle="Try changing your search or clearing some filters."
             action={
@@ -232,13 +231,9 @@ export default function BrowseMentors() {
                     </span>
                   )}
                 </div>
-                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+                <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
                   <span className="text-xs text-slate-400 dark:text-slate-500">
                     {m.experienceYears} yrs exp · {m.sessionDuration} min
-                  </span>
-                  <span className="text-base font-extrabold text-slate-900 dark:text-white">
-                    ₹{m.hourlyRate}
-                    <span className="text-xs font-normal text-slate-400 dark:text-slate-500">/hr</span>
                   </span>
                 </div>
               </div>

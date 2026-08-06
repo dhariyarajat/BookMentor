@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
+import { GraduationCap } from 'lucide-react';
 
 export default function Footer() {
   return (
     <footer className="mt-auto border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-10 sm:px-6 lg:flex-row">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-sm shadow-md shadow-indigo-600/20">
-            🎓
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md shadow-indigo-600/20">
+            <GraduationCap className="h-4 w-4 text-white" />
           </span>
           <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
             Mentor

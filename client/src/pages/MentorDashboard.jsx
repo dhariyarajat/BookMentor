@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, Clock, History, Inbox, Lock, LockOpen, Pencil, Repeat, Star, Trash2, Video, XCircle } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -19,7 +20,8 @@ for (let h = 0; h < 24; h++) {
   for (const m of [0, 30]) TIMES.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
 }
 
-const ACTIVITY_ICONS = { booked: '🟡', completed: '✅', cancelled: '❌', confirmed: '🟢' };
+const ACTIVITY_ICONS = { booked: Clock, completed: CheckCircle2, cancelled: XCircle, confirmed: CheckCircle2 };
+const ACTIVITY_COLORS = { booked: 'text-amber-500', completed: 'text-emerald-500', cancelled: 'text-rose-500', confirmed: 'text-emerald-500' };
 
 function SlotRow({ slot, onDelete, onEdit, onToggleActive, booked, meta }) {
   const unavailable = slot.isActive === false;
@@ -55,8 +57,9 @@ function SlotRow({ slot, onDelete, onEdit, onToggleActive, booked, meta }) {
           onClick={() => onEdit(slot)}
           disabled={booked}
           title={booked ? 'Booked — cannot edit' : 'Edit slot'}
+          aria-label="Edit slot"
         >
-          ✏️
+          <Pencil className="h-4 w-4" />
         </button>
         <button
           className="rounded-lg p-1.5 text-slate-400 opacity-50 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 dark:hover:bg-slate-700 dark:hover:text-slate-200"
@@ -65,30 +68,32 @@ function SlotRow({ slot, onDelete, onEdit, onToggleActive, booked, meta }) {
           title={
             booked ? 'Booked — cannot change' : unavailable ? 'Mark available' : 'Mark unavailable'
           }
+          aria-label={unavailable ? 'Mark available' : 'Mark unavailable'}
         >
-          {unavailable ? '🔓' : '🔒'}
+          {unavailable ? <LockOpen className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
         </button>
         <button
           className="rounded-lg p-1.5 text-slate-400 opacity-50 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
           onClick={() => onDelete(slot)}
           disabled={booked}
           title={booked ? 'Booked — cancel session first' : 'Delete slot'}
+          aria-label="Delete slot"
         >
-          🗑
+          <Trash2 className="h-4 w-4" />
         </button>
       </span>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, iconCls = 'from-blue-600 to-indigo-600' }) {
+function StatCard({ icon: Icon, label, value, iconCls = 'from-blue-600 to-indigo-600' }) {
   return (
     <div className="card group p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
       <div className="flex items-center justify-between">
         <span
-          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${iconCls} text-lg shadow-md transition-transform duration-200 group-hover:scale-110`}
+          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${iconCls} shadow-md transition-transform duration-200 group-hover:scale-110`}
         >
-          {icon}
+          <Icon className="h-5 w-5 text-white" strokeWidth={2.2} />
         </span>
         <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</span>
       </div>
@@ -130,8 +135,6 @@ export default function MentorDashboard() {
   // Confirmed bookings (booked-slot detection + upcoming count) & recent activity
   const [confirmedList, setConfirmedList] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
-  const [hourlyRate, setHourlyRate] = useState(0);
-  const [sessionDuration, setSessionDuration] = useState(60);
 
   // Frontend search (no API changes)
   const [q, setQ] = useState('');
@@ -190,12 +193,11 @@ export default function MentorDashboard() {
   // Load counts for the stat cards + confirmed list + recent activity once
   const loadCounts = useCallback(async () => {
     try {
-      const [c, p, x, all, me] = await Promise.all([
+      const [c, p, x, all] = await Promise.all([
         client.get('/bookings/mentor-bookings?status=confirmed'),
         client.get('/bookings/mentor-bookings?status=completed'),
         client.get('/bookings/mentor-bookings?status=cancelled'),
         client.get('/bookings/mentor-bookings'),
-        client.get('/mentors/me'),
       ]);
       setCounts({
         confirmed: c.data.bookings.length,
@@ -204,8 +206,6 @@ export default function MentorDashboard() {
       });
       setConfirmedList(c.data.bookings);
       setAllBookings(all.data.bookings);
-      setHourlyRate(me.data.mentor.hourlyRate || 0);
-      setSessionDuration(me.data.mentor.sessionDuration || 60);
     } catch {
       /* stats are non-critical */
     }
@@ -300,7 +300,7 @@ export default function MentorDashboard() {
     try {
       const tokens = await requestCalendarTokens();
       await client.post('/auth/google/tokens', tokens);
-      toast('Google Calendar connected! Meet links will be auto-generated. 🎥');
+      toast('Google Calendar connected! Meet links will be auto-generated.');
     } catch (err) {
       toast(errMsg(err), 'error');
     }
@@ -313,8 +313,6 @@ export default function MentorDashboard() {
 
   // Upcoming = confirmed sessions on a date >= today (mentor's own timezone)
   const upcomingCount = confirmedList.filter((b) => b.date >= todayInZone(b.timeZone)).length;
-  // Revenue placeholder: completed sessions x hourly rate, scaled by session length
-  const revenueEstimate = Math.round(counts.completed * hourlyRate * (sessionDuration / 60));
   const recentActivity = [...allBookings]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 6);
@@ -375,35 +373,40 @@ export default function MentorDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/mentor/profile" className="btn-secondary">✏️ Edit profile</Link>
-          <button className="btn-primary" onClick={connectCalendar}>🎥 Connect Google Calendar</button>
+          <Link to="/mentor/profile" className="btn-secondary">
+            <Pencil className="h-4 w-4" /> Edit profile
+          </Link>
+          <button className="btn-primary" onClick={connectCalendar}>
+            <Video className="h-4 w-4" /> Connect Google Calendar
+          </button>
         </div>
       </div>
 
       {/* Stats */}
       {loading ? (
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          {Array.from({ length: 7 }).map((_, i) => (
             <SkeletonStat key={i} />
           ))}
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
-          <StatCard icon="🗓️" label="Total slots" value={totalSlots} />
-          <StatCard icon="🟢" label="Available" value={availableSlots} iconCls="from-emerald-500 to-teal-500" />
-          <StatCard icon="📥" label="Booked" value={counts.confirmed} />
-          <StatCard icon="📅" label="Upcoming" value={upcomingCount} iconCls="from-cyan-500 to-blue-500" />
-          <StatCard icon="✅" label="Completed" value={counts.completed} iconCls="from-blue-600 to-indigo-600" />
-          <StatCard icon="❌" label="Cancelled" value={counts.cancelled} iconCls="from-rose-500 to-pink-500" />
-          <StatCard icon="💰" label="Revenue est." value={`₹${revenueEstimate}`} iconCls="from-amber-500 to-orange-500" />
-          <StatCard icon="⭐" label="Avg rating" value={reviewStats.count ? reviewStats.avg.toFixed(1) : '—'} iconCls="from-amber-500 to-orange-500" />
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          <StatCard icon={CalendarDays} label="Total slots" value={totalSlots} />
+          <StatCard icon={CalendarCheck} label="Available" value={availableSlots} iconCls="from-emerald-500 to-teal-500" />
+          <StatCard icon={Inbox} label="Booked" value={counts.confirmed} />
+          <StatCard icon={CalendarClock} label="Upcoming" value={upcomingCount} iconCls="from-cyan-500 to-blue-500" />
+          <StatCard icon={CheckCircle2} label="Completed" value={counts.completed} iconCls="from-blue-600 to-indigo-600" />
+          <StatCard icon={XCircle} label="Cancelled" value={counts.cancelled} iconCls="from-rose-500 to-pink-500" />
+          <StatCard icon={Star} label="Avg rating" value={reviewStats.count ? reviewStats.avg.toFixed(1) : '—'} iconCls="from-amber-500 to-orange-500" />
         </div>
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* ---- Availability manager ---- */}
         <div className="card p-6">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">🗓️ My availability</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+            <CalendarDays className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> My availability
+          </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Set free hours for a specific day, or save a slot that repeats every week.
           </p>
@@ -451,7 +454,9 @@ export default function MentorDashboard() {
           </div>
 
           <div className="mt-5">
-            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🔁 Recurring weekly schedule</h3>
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+              <Repeat className="h-4 w-4 text-indigo-500 dark:text-indigo-400" /> Recurring weekly schedule
+            </h3>
             <p className="text-xs text-slate-400 dark:text-slate-500">These slots repeat every week — set once, save forever.</p>
             <form onSubmit={addRecurring} className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-center">
               <select className="input !py-2" value={rec.day} onChange={(e) => setRec({ ...rec, day: Number(e.target.value) })}>
@@ -493,7 +498,9 @@ export default function MentorDashboard() {
         {/* ---- Bookings ---- */}
         <div className="card p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">📥 Bookings</h2>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+              <Inbox className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Bookings
+            </h2>
             <div className="relative">
               <svg
                 className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
@@ -539,7 +546,7 @@ export default function MentorDashboard() {
           ) : filteredBookings.length === 0 ? (
             <div className="mt-4">
               <EmptyState
-                icon="📭"
+                icon={Inbox}
                 title={q.trim() ? 'No matching students' : `No ${bookingsTab} bookings`}
                 subtitle={q.trim() ? 'Try a different name.' : 'When students book your free slots, they will appear here.'}
               />
@@ -564,7 +571,7 @@ export default function MentorDashboard() {
                   {b.notes && <p className="mt-2 text-xs italic text-slate-400 dark:text-slate-500">"{b.notes}"</p>}
                   {b.meetLink && (
                     <a href={b.meetLink} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400">
-                      🎥 {b.meetLink.replace('https://', '').slice(0, 40)}…
+                      <Video className="h-3.5 w-3.5" /> {b.meetLink.replace('https://', '').slice(0, 40)}…
                     </a>
                   )}
                   {b.status === 'confirmed' && (
@@ -573,10 +580,10 @@ export default function MentorDashboard() {
                         <a href={b.meetLink} target="_blank" rel="noreferrer" className="btn-primary !px-3 !py-1.5 !text-xs">Join Meet</a>
                       )}
                       <button className="btn-secondary !px-3 !py-1.5 !text-xs" onClick={() => setConfirm({ type: 'complete', target: b })}>
-                        ✓ Complete
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Complete
                       </button>
                       <button className="btn-danger !px-3 !py-1.5 !text-xs" onClick={() => setConfirm({ type: 'cancel', target: b })}>
-                        ✕ Cancel
+                        <XCircle className="h-3.5 w-3.5" /> Cancel
                       </button>
                     </div>
                   )}
@@ -591,7 +598,9 @@ export default function MentorDashboard() {
       <div className="card mt-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">⭐ Student reviews</h2>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+              <Star className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Student reviews
+            </h2>
             <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
               Reviews are left by students after completed sessions. You cannot edit or delete them.
             </p>
@@ -608,7 +617,7 @@ export default function MentorDashboard() {
                       : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
-                  {f ? `${f}★` : 'All'}
+                  {f ? (<>{f}<Star className="ml-0.5 inline h-3 w-3 fill-current" /></>) : 'All'}
                 </button>
               ))}
             </div>
@@ -640,7 +649,10 @@ export default function MentorDashboard() {
                   const pct = Math.round((d.count / reviewStats.count) * 100);
                   return (
                     <div key={d.rating} className="flex items-center gap-2 text-xs" title={`${pct}%`}>
-                      <span className="w-7 shrink-0 font-semibold text-slate-500 dark:text-slate-400">{d.rating}★</span>
+                      <span className="flex w-8 shrink-0 items-center gap-0.5 font-semibold text-slate-500 dark:text-slate-400">
+                        {d.rating}
+                        <Star className="h-3 w-3 fill-current" />
+                      </span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-700">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
@@ -665,7 +677,7 @@ export default function MentorDashboard() {
               </div>
             ) : reviews.length === 0 ? (
               <EmptyState
-                icon="⭐"
+                icon={Star}
                 title={reviewFilter ? 'No reviews with this rating' : 'No reviews yet'}
                 subtitle={
                   reviewFilter
@@ -686,29 +698,34 @@ export default function MentorDashboard() {
 
       {/* ---- Recent activity ---- */}
       <div className="card mt-6 p-6">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">🕘 Recent activity</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+          <History className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Recent activity
+        </h2>
         {recentActivity.length === 0 ? (
           <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-400 dark:bg-slate-800/60 dark:text-slate-500">
             No activity yet — bookings and slot changes will show up here.
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
-            {recentActivity.map((b) => (
-              <li key={b._id} className="flex items-center gap-3 py-2.5 text-sm">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-base dark:bg-slate-800">
-                  {ACTIVITY_ICONS[b.status] || '•'}
-                </span>
+            {recentActivity.map((b) => {
+              const ActivityIcon = ACTIVITY_ICONS[b.status];
+              return (
+                <li key={b._id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                    {ActivityIcon ? <ActivityIcon className={`h-4 w-4 ${ACTIVITY_COLORS[b.status] || 'text-slate-400'}`} /> : '•'}
+                  </span>
                 <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">
                   <strong>{b.student?.name || 'A student'}</strong>{' '}
                   <span className="text-slate-400">
                     {b.status === 'confirmed' ? 'booked' : b.status} · {formatDate(b.date)} at {formatTime(b.startTime)}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
-                  {new Date(b.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                </span>
-              </li>
-            ))}
+                  <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
+                    {new Date(b.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

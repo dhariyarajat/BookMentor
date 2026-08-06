@@ -1,3 +1,4 @@
+import { Play } from 'lucide-react';
 import Modal from './Modal.jsx';
 import Avatar from './Avatar.jsx';
 import { formatDate, formatTime } from '../utils/time.js';
@@ -55,7 +56,7 @@ export default function BookingDetailsModal({ booking, onClose }) {
             rel="noreferrer"
             className="btn-primary mt-4 w-full !py-2 !text-xs"
           >
-            <span className="text-xs">▶</span> Join Meet
+            <Play className="h-3.5 w-3.5" /> Join Meet
           </a>
         )}
       </div>

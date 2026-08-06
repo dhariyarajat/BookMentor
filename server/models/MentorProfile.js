@@ -7,7 +7,6 @@ const mentorProfileSchema = new mongoose.Schema(
     bio: { type: String, default: '', maxlength: 2000 },
     expertise: { type: [String], default: [] },
     experienceYears: { type: Number, default: 0, min: 0, max: 60 },
-    hourlyRate: { type: Number, default: 0, min: 0 },
     sessionDuration: { type: Number, default: 60, min: 15, max: 240 }, // minutes
     timeZone: { type: String, default: 'Asia/Kolkata' },
     location: { type: String, default: '' },

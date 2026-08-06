@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import GoogleButton from '../components/GoogleButton.jsx';
@@ -32,7 +33,7 @@ export default function Login() {
     setLoading(true);
     try {
       const u = await login(form.email.trim(), form.password);
-      toast(`Welcome back, ${u.name.split(' ')[0]}! 🎉`);
+      toast(`Welcome back, ${u.name.split(' ')[0]}!`);
       goHome(u);
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -44,7 +45,7 @@ export default function Login() {
   const handleGoogle = async (idToken) => {
     try {
       const u = await googleLoginWithToken(idToken);
-      toast(`Signed in as ${u.name.split(' ')[0]}! 🎉`);
+      toast(`Signed in as ${u.name.split(' ')[0]}!`);
       goHome(u);
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -62,20 +63,22 @@ export default function Login() {
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-indigo-400/20 blur-2xl" />
           <div className="relative">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-xl backdrop-blur">🎓</div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+              <GraduationCap className="h-6 w-6 text-white" />
+            </div>
             <h2 className="mt-6 text-2xl font-extrabold leading-snug">Welcome back to MentorBook</h2>
             <p className="mt-2 text-sm leading-relaxed text-indigo-100">
               Jump back into your sessions, check your upcoming meetings and keep growing with the best mentors.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm text-indigo-100">
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-300">✓</span> Live slot booking, zero double-booking
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /> Live slot booking, zero double-booking
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-300">✓</span> Auto-generated Google Meet links
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /> Auto-generated Google Meet links
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-300">✓</span> Smart reminders & rescheduling
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /> Smart reminders & rescheduling
               </li>
             </ul>
           </div>

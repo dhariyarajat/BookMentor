@@ -18,7 +18,6 @@ export function toPublicMentor(doc) {
     bio: p.bio || '',
     expertise: p.expertise || [],
     experienceYears: p.experienceYears || 0,
-    hourlyRate: p.hourlyRate || 0,
     sessionDuration: p.sessionDuration || 60,
     timeZone: p.timeZone || 'Asia/Kolkata',
     location: p.location || '',
@@ -52,8 +51,6 @@ export async function computeTotalSessions(mentorId) {
 
 const SORTS = {
   rating: { 'profile.ratingAvg': -1 },
-  rate_low: { 'profile.hourlyRate': 1 },
-  rate_high: { 'profile.hourlyRate': -1 },
   experience: { 'profile.experienceYears': -1 },
   newest: { createdAt: -1 },
 };
@@ -174,7 +171,6 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     'bio',
     'expertise',
     'experienceYears',
-    'hourlyRate',
     'sessionDuration',
     'timeZone',
     'location',

@@ -1,3 +1,5 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 export default function Pagination({ page, pages, onChange }) {
   if (pages <= 1) return null;
 
@@ -13,7 +15,7 @@ export default function Pagination({ page, pages, onChange }) {
   return (
     <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
       <button className={arrowBtn} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label="Previous page">
-        ←
+        <ChevronLeft className="h-4 w-4" />
       </button>
       {items.map((it, i) =>
         it === '…' ? (
@@ -36,7 +38,7 @@ export default function Pagination({ page, pages, onChange }) {
         )
       )}
       <button className={arrowBtn} disabled={page >= pages} onClick={() => onChange(page + 1)} aria-label="Next page">
-        →
+        <ChevronRight className="h-4 w-4" />
       </button>
     </div>
   );

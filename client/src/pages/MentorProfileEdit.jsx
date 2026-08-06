@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Save } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { EXPERTISE_TAGS } from '../data/expertise.js';
@@ -18,7 +19,6 @@ export default function MentorProfileEdit() {
     bio: '',
     expertise: [],
     experienceYears: 0,
-    hourlyRate: 0,
     sessionDuration: 60,
     timeZone: 'Asia/Kolkata',
     location: '',
@@ -36,7 +36,6 @@ export default function MentorProfileEdit() {
           bio: m.bio || '',
           expertise: m.expertise || [],
           experienceYears: m.experienceYears || 0,
-          hourlyRate: m.hourlyRate || 0,
           sessionDuration: m.sessionDuration || 60,
           timeZone: m.timeZone || 'Asia/Kolkata',
           location: m.location || '',
@@ -69,7 +68,7 @@ export default function MentorProfileEdit() {
     setSaving(true);
     try {
       await client.patch('/mentors/me', form);
-      toast('Profile saved! ✅');
+      toast('Profile saved!');
       navigate('/mentor');
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -109,14 +108,10 @@ export default function MentorProfileEdit() {
           />
         </div>
 
-        <div className="grid gap-5 border-t border-slate-100 pt-6 sm:grid-cols-3 dark:border-slate-800">
+        <div className="grid gap-5 border-t border-slate-100 pt-6 sm:grid-cols-2 dark:border-slate-800">
           <div>
             <label className="label">Experience (years)</label>
             <input type="number" min={0} max={60} className="input" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: Number(e.target.value) })} />
-          </div>
-          <div>
-            <label className="label">Hourly rate (₹)</label>
-            <input type="number" min={0} className="input" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: Number(e.target.value) })} />
           </div>
           <div>
             <label className="label">Session length (min)</label>
@@ -186,7 +181,7 @@ export default function MentorProfileEdit() {
         <div className="flex gap-3 border-t border-slate-100 pt-6 dark:border-slate-800">
           <button className="btn-secondary" onClick={() => navigate('/mentor')}>Back</button>
           <button className="btn-primary flex-1" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : '💾 Save profile'}
+            {saving ? 'Saving…' : (<><Save className="h-4 w-4" /> Save profile</>)}
           </button>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+
 export default function Modal({ open, onClose, title, children, size = 'md' }) {
   if (!open) return null;
   const sizes = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl' };
@@ -20,7 +22,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
               onClick={onClose}
               aria-label="Close"
             >
-              ✕
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}

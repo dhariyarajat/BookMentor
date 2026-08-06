@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Calendar, CheckCircle2, Clock, GraduationCap, Inbox, Target, Users, XCircle } from 'lucide-react';
 import client, { errMsg } from '../api/client.js';
 import { useToast } from '../context/ToastContext.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -8,12 +9,12 @@ import Pagination from '../components/Pagination.jsx';
 import { formatDate, formatTime } from '../utils/time.js';
 import { BOOKING_STATUS_STYLE } from '../utils/status.js';
 
-function StatCard({ icon, label, value }) {
+function StatCard({ icon: Icon, label, value }) {
   return (
     <div className="card group p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
       <div className="flex items-center justify-between">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-lg shadow-md shadow-indigo-600/20 transition-transform duration-200 group-hover:scale-110">
-          {icon}
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md shadow-indigo-600/20 transition-transform duration-200 group-hover:scale-110">
+          <Icon className="h-5 w-5 text-white" strokeWidth={2.2} />
         </span>
         <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</span>
       </div>
@@ -93,12 +94,12 @@ export default function AdminDashboard() {
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {stats ? (
           <>
-            <StatCard icon="🎓" label="Mentors" value={stats.mentors ?? '—'} />
-            <StatCard icon="🎯" label="Students" value={stats.students ?? '—'} />
-            <StatCard icon="📅" label="Total bookings" value={stats.bookings ?? '—'} />
-            <StatCard icon="✅" label="Confirmed" value={stats.confirmedBookings ?? '—'} />
-            <StatCard icon="❌" label="Cancelled" value={stats.cancelledBookings ?? '—'} />
-            <StatCard icon="⏰" label="Free slots" value={stats.totalSlots ?? '—'} />
+            <StatCard icon={GraduationCap} label="Mentors" value={stats.mentors ?? '—'} />
+            <StatCard icon={Target} label="Students" value={stats.students ?? '—'} />
+            <StatCard icon={Calendar} label="Total bookings" value={stats.bookings ?? '—'} />
+            <StatCard icon={CheckCircle2} label="Confirmed" value={stats.confirmedBookings ?? '—'} />
+            <StatCard icon={XCircle} label="Cancelled" value={stats.cancelledBookings ?? '—'} />
+            <StatCard icon={Clock} label="Free slots" value={stats.totalSlots ?? '—'} />
           </>
         ) : (
           Array.from({ length: 6 }).map((_, i) => <SkeletonStat key={i} />)
@@ -136,7 +137,7 @@ export default function AdminDashboard() {
             </div>
           ) : users.length === 0 ? (
             <div className="mt-4">
-              <EmptyState icon="👥" title="No users found" />
+              <EmptyState icon={Users} title="No users found" />
             </div>
           ) : (
             <div className="mt-4 overflow-x-auto">
@@ -210,7 +211,7 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Recent bookings</h2>
           {recent.length === 0 ? (
             <div className="mt-4">
-              <EmptyState icon="📭" title="No bookings yet" />
+              <EmptyState icon={Inbox} title="No bookings yet" />
             </div>
           ) : (
             <div className="mt-4 space-y-3">

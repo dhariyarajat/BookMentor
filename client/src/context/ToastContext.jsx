@@ -1,4 +1,5 @@
 import { createContext, useContext, useCallback } from 'react';
+import { Info } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const ToastContext = createContext(null);
@@ -7,7 +8,7 @@ export function ToastProvider({ children }) {
   // Keeps the app-wide `toast(message, type)` API used everywhere.
   const notify = useCallback((message, type = 'success') => {
     if (type === 'error') toast.error(message);
-    else if (type === 'info') toast(message, { icon: 'ℹ️' });
+    else if (type === 'info') toast(message, { icon: <Info className="h-4 w-4 text-indigo-500" /> });
     else toast.success(message);
   }, []);
 

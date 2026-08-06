@@ -1,27 +1,11 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { GraduationCap, Menu, Moon, Sun, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import Avatar from './Avatar.jsx';
 
 const ROLE_LABEL = { student: 'Student', mentor: 'Mentor', admin: 'Admin' };
-
-function MoonIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.5 12.5A7.5 7.5 0 017.5 2.5 7.5 7.5 0 1017.5 12.5z" />
-    </svg>
-  );
-}
-
-function SunIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="10" r="3.5" />
-      <path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M3.9 3.9l1.4 1.4M14.7 14.7l1.4 1.4M16.1 3.9l-1.4 1.4M5.3 14.7l-1.4 1.4" />
-    </svg>
-  );
-}
 
 // Independent instances in the desktop bar and mobile menu — never share one element.
 function ThemeToggleButton() {
@@ -33,7 +17,7 @@ function ThemeToggleButton() {
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
     >
-      {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
   );
 }
@@ -70,8 +54,8 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-lg shadow-md shadow-indigo-600/30">
-            🎓
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md shadow-indigo-600/30">
+            <GraduationCap className="h-5 w-5 text-white" />
           </span>
           <span className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
             Mentor
@@ -127,15 +111,7 @@ export default function Navbar() {
           aria-label="Toggle menu"
           aria-expanded={open}
         >
-          {open ? (
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          ) : (
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 7h16M4 12h16M4 17h10" />
-            </svg>
-          )}
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </nav>
 

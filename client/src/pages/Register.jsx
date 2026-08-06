@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2, GraduationCap, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import GoogleButton from '../components/GoogleButton.jsx';
@@ -7,8 +8,8 @@ import FloatingInput from '../components/FloatingInput.jsx';
 import { errMsg } from '../api/client.js';
 
 const ROLES = [
-  { value: 'student', icon: '🎯', title: 'I\u2019m a Student', desc: 'I want to learn from mentors' },
-  { value: 'mentor', icon: '🎓', title: 'I\u2019m a Mentor', desc: 'I want to share my expertise' },
+  { value: 'student', icon: Target, title: 'I\u2019m a Student', desc: 'I want to learn from mentors' },
+  { value: 'mentor', icon: GraduationCap, title: 'I\u2019m a Mentor', desc: 'I want to share my expertise' },
 ];
 
 export default function Register() {
@@ -41,7 +42,7 @@ export default function Register() {
     setLoading(true);
     try {
       const u = await register({ name: form.name.trim(), email: form.email.trim(), password: form.password, role });
-      toast(`Welcome to MentorBook, ${u.name.split(' ')[0]}! 🎉`);
+      toast(`Welcome to MentorBook, ${u.name.split(' ')[0]}!`);
       goHome(u);
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -53,7 +54,7 @@ export default function Register() {
   const handleGoogle = async (idToken) => {
     try {
       const u = await googleLoginWithToken(idToken, role);
-      toast(`Signed up with Google as ${u.name.split(' ')[0]}! 🎉`);
+      toast(`Signed up with Google as ${u.name.split(' ')[0]}!`);
       goHome(u);
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -71,20 +72,22 @@ export default function Register() {
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-indigo-400/20 blur-2xl" />
           <div className="relative">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-xl backdrop-blur">🎓</div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+              <GraduationCap className="h-6 w-6 text-white" />
+            </div>
             <h2 className="mt-6 text-2xl font-extrabold leading-snug">Start your mentorship journey</h2>
             <p className="mt-2 text-sm leading-relaxed text-indigo-100">
               Join free as a student or a mentor. Set your hours, book sessions and grow — all in one place.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm text-indigo-100">
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-300">✓</span> Free forever — no hidden fees
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /> Free forever — no hidden fees
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-300">✓</span> Sign up with email or Google
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /> Sign up with email or Google
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-300">✓</span> Mentor profiles approved by admins
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /> Mentor profiles approved by admins
               </li>
             </ul>
           </div>
@@ -109,7 +112,9 @@ export default function Register() {
                       : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-500/5'
                   }`}
                 >
-                  <div className="text-2xl">{r.icon}</div>
+                  <div className="text-indigo-500 dark:text-indigo-400">
+                    <r.icon className="h-6 w-6" />
+                  </div>
                   <div className={`mt-2 text-sm font-bold ${role === r.value ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-200'}`}>
                     {r.title}
                   </div>

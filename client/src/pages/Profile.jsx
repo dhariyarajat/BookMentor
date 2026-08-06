@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Lock, Pencil } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import client, { errMsg } from '../api/client.js';
@@ -46,7 +47,7 @@ export default function Profile() {
         newPassword: pw.next,
         confirmPassword: pw.confirm,
       });
-      toast('Password changed successfully! 🔐');
+      toast('Password changed successfully!');
       setPw({ current: '', next: '', confirm: '' });
       setPwErrors({});
     } catch (err) {
@@ -66,7 +67,7 @@ export default function Profile() {
     try {
       const { data } = await client.patch('/auth/me', { name: name.trim(), avatar: avatar.trim() });
       setUser(data.user);
-      toast('Profile updated! ✅');
+      toast('Profile updated!');
     } catch (err) {
       toast(errMsg(err), 'error');
     } finally {
@@ -98,7 +99,7 @@ export default function Profile() {
           </div>
           {user?.role === 'mentor' && (
             <Link to="/mentor/profile" className="btn-secondary shrink-0">
-              ✏️ Edit mentor profile
+              <Pencil className="h-4 w-4" /> Edit mentor profile
             </Link>
           )}
         </div>
@@ -120,7 +121,9 @@ export default function Profile() {
 
         {/* Change password */}
         <div className="card p-6">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">🔒 Change password</h3>
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+            <Lock className="h-5 w-5 text-slate-400 dark:text-slate-500" /> Change password
+          </h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Verify your current password to set a new one.
           </p>
