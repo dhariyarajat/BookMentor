@@ -20,8 +20,7 @@
 
 | Platform | URL |
 |----------|-----|
-| Frontend | (book-mentor-teal.vercel.app
-) |
+| Frontend | (book-mentor-teal.vercel.app) |
 | Backend API | (https://bookmentor.onrender.com) |
 
 ---
