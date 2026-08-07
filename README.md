@@ -20,9 +20,8 @@
 
 | Platform | URL |
 |----------|-----|
-| Frontend | `book-mentor-teal.vercel.app
-` |
-| Backend API | `https://bookmentor.onrender.com` |
+| Frontend | https://book-mentor-teal.vercel.app |
+| Backend API | https://bookmentor.onrender.com |
 
 ---
 
@@ -296,13 +295,13 @@ All endpoints are prefixed with `/api`.
 
 ### Home Page
 
-(Add Screenshot Here)
+![Home](./assets/Home.png)
 
 ---
 
 ### Login
 
-(Add Screenshot Here)
+![Login](./assets/Login.png)
 
 ---
 
@@ -314,61 +313,43 @@ All endpoints are prefixed with `/api`.
 
 ### Mentor Dashboard
 
-(Add Screenshot Here)
+![Mentor Dash](./assets/MentorDash.png)
 
 ---
 
 ### Mentor Availability
 
-(Add Screenshot Here)
+![Mentor Availability](./assets/MentorAvailability.png)
 
 ---
 
 ### Mentor Profile
 
-(Add Screenshot Here)
+![Mentor Profile](./assets/MentorProfile.png)
 
 ---
 
-### Available Slots
+### Available Slots, Booking Page And  Reviews
 
-(Add Screenshot Here)
-
----
-
-### Booking Page
-
-(Add Screenshot Here)
-
----
-
-### Booking Confirmation
-
-(Add Screenshot Here)
+![Available Slots](./assets/AvailableSlots.png)
 
 ---
 
 ### My Sessions
 
-(Add Screenshot Here)
-
----
-
-### Reviews
-
-(Add Screenshot Here)
+![My Sessions](./assets/MySessions.png)
 
 ---
 
 ### Admin Dashboard
 
-(Add Screenshot Here)
+![Admin Dashboard](./assets/AdminPanel.png)
 
 ---
 
 ### Email Notification
 
-(Add Screenshot Here)
+![Email Notification](./assets/Gmail.png)
 
 ---
 
@@ -404,7 +385,7 @@ This project is licensed under the **MIT License**.
 
 **Name:** Rajat Dhariya
 
-**GitHub:** [YOUR_GITHUB_PROFILE](https://github.com/dhariyarajat)
+**GitHub:** https://github.com/dhariyarajat
 
-**LinkedIn:** [YOUR_LINKEDIN_PROFILE](https://www.linkedin.com/in/rajat-dhariya-754413377)
+**LinkedIn:** https://www.linkedin.com/in/rajat-dhariya-754413377
 
