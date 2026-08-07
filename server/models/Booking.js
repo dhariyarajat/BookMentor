@@ -18,6 +18,14 @@ const bookingSchema = new mongoose.Schema(
     cancelReason: { type: String, default: '' },
     reminderSent: { type: Boolean, default: false }, // true once the 20-minute reminder emails are sent
     reminderSentAt: { type: Date, default: null }, // when the 20-minute reminder was sent
+    // Zoom meeting — created by the cron exactly 20 minutes before the session
+    zoomMeetingId: { type: String, default: '' }, // Zoom meeting ID
+    zoomJoinUrl: { type: String, default: '' }, // participant join link
+    zoomStartUrl: { type: String, default: '' }, // host start link (mentor only)
+    zoomPassword: { type: String, default: '' }, // meeting password
+    zoomCreated: { type: Boolean, default: false }, // true once the meeting exists
+    zoomCreatedAt: { type: Date, default: null }, // when the Zoom meeting was created
+    zoomReminderSent: { type: Boolean, default: false }, // true once the zoom reminder emails went out
   },
   { timestamps: true }
 );

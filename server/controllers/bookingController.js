@@ -3,9 +3,10 @@ import Booking from '../models/Booking.js';
 import User from '../models/User.js';
 import MentorProfile from '../models/MentorProfile.js';
 import { getSlotsForDate, findSlotConflict, isSlotInPast } from '../services/slotService.js';
-import { zonedTimeToUtc, todayInZone } from '../utils/time.js';
+import { zonedTimeToUtc, todayInZone, durationMinutes } from '../utils/time.js';
 import { sendMail, emailTemplates } from '../services/mailer.js';
 import { createMeetLink, deleteCalendarEvent } from '../services/meeting.js';
+import { createZoomMeeting, deleteZoomMeeting, isZoomConfigured } from '../services/zoom.js';
 import AppError from '../utils/appError.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
@@ -28,9 +29,14 @@ async function buildEmailData(booking, mentor, student, timeZone) {
     startTime: booking.startTime,
     endTime: booking.endTime,
     timeZone,
+    duration: `${durationMinutes(booking.startTime, booking.endTime)} min`,
     bookingId: booking._id.toString(),
     status: booking.status,
     meetLink: booking.meetLink,
+    // Zoom details — rendered by the confirmation + reminder email templates.
+    zoomJoinUrl: booking.zoomJoinUrl || '',
+    zoomMeetingId: booking.zoomMeetingId || '',
+    zoomPassword: booking.zoomPassword || '',
     notes: booking.notes,
     cancelReason: booking.cancelReason,
   };
@@ -107,18 +113,54 @@ export const createBooking = asyncHandler(async (req, res) => {
     throw new AppError('This slot was just taken by someone else. Please pick another time.', 409);
   }
 
+  const student = req.user;
+
+  // 1) Create the Zoom meeting BEFORE saving the booking, so the confirmation
+  //    emails can include the join link. When Zoom is configured and the API
+  //    call fails, the booking is rejected entirely — no meeting, no email.
+  //    (When Zoom is NOT configured, the app falls back to the existing
+  //    Google Meet link so the booking flow keeps working in dev setups.)
+  let zoom = null;
+  if (isZoomConfigured()) {
+    console.log('Creating Zoom meeting...');
+    zoom = await createZoomMeeting({
+      topic: `Mentoring session: ${student.name} ↔ ${mentor.name}`,
+      date,
+      startTime,
+      endTime,
+      timeZone,
+    });
+    if (!zoom?.zoomMeetingId) {
+      // Covers both API errors and malformed responses without a meeting id.
+      throw new AppError('Zoom meeting could not be created. Please try again.', 503);
+    }
+    console.log(
+      `Meeting created successfully\nMeeting ID: ${zoom.zoomMeetingId}\nJoin URL: ${zoom.zoomJoinUrl}\nPassword: ${zoom.zoomPassword || '(none)'}`
+    );
+  }
+
+  // 2) Only now save the booking, with all Zoom details attached.
   let booking;
   try {
     booking = await Booking.create({
       mentor: mentor._id,
-      student: req.user._id,
+      student: student._id,
       date,
       startTime,
       endTime,
       notes: notes.trim(),
       timeZone,
+      zoomMeetingId: zoom?.zoomMeetingId || '',
+      zoomJoinUrl: zoom?.zoomJoinUrl || '',
+      zoomStartUrl: zoom?.zoomStartUrl || '',
+      zoomPassword: zoom?.zoomPassword || '',
+      zoomCreated: Boolean(zoom),
+      zoomCreatedAt: zoom ? new Date() : null,
     });
   } catch (err) {
+    // The slot was taken a millisecond earlier (E11000) or the save failed —
+    // never leave an orphaned Zoom meeting behind.
+    if (zoom?.zoomMeetingId) await deleteZoomMeeting(zoom.zoomMeetingId);
     // E11000 -> unique partial index hit: someone booked this exact slot first.
     if (err.code === 11000) {
       throw new AppError('This slot was just taken by someone else. Please pick another time.', 409);
@@ -126,9 +168,14 @@ export const createBooking = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  await attachMeetLink(booking, mentor, req.user, date, startTime, endTime, timeZone);
+  // 3) Google Meet link stays as a fallback only when Zoom is not configured.
+  if (!zoom) {
+    await attachMeetLink(booking, mentor, student, date, startTime, endTime, timeZone);
+  }
 
-  const student = req.user;
+  // 4) Confirmation emails — only reached once the Zoom meeting exists.
+  console.log('Sending confirmation email...');
+  console.log(`Join URL: ${booking.zoomJoinUrl || '(none)'}\nStudent Email: ${student.email}\nMentor Email: ${mentor.email}`);
   const data = await buildEmailData(booking, mentor, student, timeZone);
   await notifyBoth({
     student,
@@ -136,8 +183,13 @@ export const createBooking = asyncHandler(async (req, res) => {
     buildForStudent: () => emailTemplates.bookingConfirmed(data),
     buildForMentor: () => emailTemplates.mentorNewBooking(data),
   });
+  console.log('Confirmation email sent successfully.');
 
-  res.status(201).json({ success: true, booking, message: 'Session booked successfully!' });
+  // zoomStartUrl grants host privileges — store it in the DB but never send it
+  // to the client; participants join via zoomJoinUrl instead.
+  const responseBooking = booking.toObject();
+  delete responseBooking.zoomStartUrl;
+  res.status(201).json({ success: true, booking: responseBooking, message: 'Session booked successfully!' });
 });
 
 /** Students: their bookings, split into upcoming & past. */
@@ -149,7 +201,10 @@ export const getMyBookings = asyncHandler(async (req, res) => {
 
   // Every booking lands in exactly one list: upcoming (confirmed & not yet passed)
   // or past (everything else, including past-dated confirmed ones awaiting auto-complete).
-  const enriched = bookings.map((b) => ({ ...b, timeZone: b.timeZone || 'Asia/Kolkata' }));
+  const enriched = bookings.map((b) => {
+    delete b.zoomStartUrl; // host-only link — never expose to clients
+    return { ...b, timeZone: b.timeZone || 'Asia/Kolkata' };
+  });
   const upcoming = enriched.filter((b) => b.status === 'confirmed' && b.date >= todayInZone(b.timeZone));
   const past = enriched.filter((b) => !(b.status === 'confirmed' && b.date >= todayInZone(b.timeZone)));
   res.json({ success: true, upcoming, past });
@@ -170,7 +225,13 @@ export const getMentorBookings = asyncHandler(async (req, res) => {
   const profile = await MentorProfile.findOne({ user: req.user._id }).lean();
   const timeZone = profile?.timeZone || 'Asia/Kolkata';
 
-  res.json({ success: true, bookings: bookings.map((b) => ({ ...b, timeZone })) });
+  res.json({
+    success: true,
+    bookings: bookings.map((b) => {
+      delete b.zoomStartUrl; // host-only link — never expose to clients
+      return { ...b, timeZone };
+    }),
+  });
 });
 
 /** Student or mentor cancels a booking. */
@@ -193,6 +254,11 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 
   if (booking.calendarEventId) {
     await deleteCalendarEvent(booking.mentor, booking.calendarEventId);
+  }
+  // If a Zoom meeting was already created (20-min cron), delete it so no
+  // stale meeting lingers after cancellation.
+  if (booking.zoomMeetingId) {
+    await deleteZoomMeeting(booking.zoomMeetingId);
   }
 
   const data = await buildEmailData(booking, booking.mentor, booking.student, booking.timeZone || 'Asia/Kolkata');
@@ -258,6 +324,11 @@ export const rescheduleBooking = asyncHandler(async (req, res) => {
   if (booking.calendarEventId) {
     await deleteCalendarEvent(booking.mentor, booking.calendarEventId);
   }
+  // Delete the old Zoom meeting (if the cron already created one) and clear
+  // every Zoom field so a fresh meeting is generated for the new time.
+  if (booking.zoomMeetingId) {
+    await deleteZoomMeeting(booking.zoomMeetingId);
+  }
 
   booking.date = newDate;
   booking.startTime = newStartTime;
@@ -268,6 +339,13 @@ export const rescheduleBooking = asyncHandler(async (req, res) => {
   booking.reminderSentAt = null;
   booking.calendarEventId = '';
   booking.meetLink = '';
+  booking.zoomMeetingId = '';
+  booking.zoomJoinUrl = '';
+  booking.zoomStartUrl = '';
+  booking.zoomPassword = '';
+  booking.zoomCreated = false;
+  booking.zoomCreatedAt = null;
+  booking.zoomReminderSent = false;
   await booking.save();
 
   await attachMeetLink(booking, booking.mentor, booking.student, newDate, newStartTime, newEndTime, timeZone);

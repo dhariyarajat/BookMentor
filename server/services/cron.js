@@ -1,7 +1,8 @@
 import cron from 'node-cron';
 import Booking from '../models/Booking.js';
 import { sendMail, emailTemplates } from './mailer.js';
-import { zonedTimeToUtc, todayInZone, addDays } from '../utils/time.js';
+import { zonedTimeToUtc, todayInZone, addDays, durationMinutes } from '../utils/time.js';
+import { createZoomMeeting, deleteZoomMeeting, isZoomConfigured } from './zoom.js';
 
 // One reminder per booking, sent exactly 20 minutes before the session starts.
 // The job runs every minute; the reminderSent guard guarantees a single send.
@@ -9,6 +10,15 @@ import { zonedTimeToUtc, todayInZone, addDays } from '../utils/time.js';
 // "remaining time between 19 and 20 minutes". The window is one tick wide, so
 // a failed send is not retried (the reminderSent flag is only set when both
 // emails succeed; failures are logged and the job keeps going).
+//
+// Zoom: new bookings get their meeting at booking time (see
+// bookingController.createBooking). This cron only backfills confirmed
+// bookings that still don't have one (e.g. legacy bookings created before the
+// feature) starting within the next 20 minutes. Creation is deliberately
+// decoupled from the exact email window so a single missed tick can't
+// permanently lose the meeting. Meeting creation is best-effort — a Zoom API
+// failure is logged and the reminder still sends (falling back to the Google
+// Meet link when present). Reminders always reuse the stored meeting link.
 const REMINDER_WINDOW_MIN = 19;
 const REMINDER_WINDOW_MAX = 20;
 
@@ -52,6 +62,39 @@ export async function sendReminders() {
     }
     if (!mentor || !student) continue;
 
+    // Ensure a Zoom meeting exists for any session starting within the next
+    // 20 minutes. Only created once per booking (guarded by zoomMeetingId);
+    // never throws into the loop.
+    if (minsToStart > 0 && minsToStart <= REMINDER_WINDOW_MAX && !b.zoomMeetingId && isZoomConfigured()) {
+      let meeting = null;
+      try {
+        meeting = await createZoomMeeting({
+          topic: `Mentoring session: ${student.name} ↔ ${mentor.name}`,
+          date: b.date,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          timeZone,
+        });
+        if (meeting) {
+          // Race guard: a booking cancelled/completed mid-window must not get
+          // a meeting attached after the fact — clean up the orphan and skip.
+          const stillActive = await Booking.exists({ _id: b._id, status: 'confirmed' });
+          if (!stillActive) {
+            await deleteZoomMeeting(meeting.zoomMeetingId);
+            continue;
+          }
+          b.set(meeting);
+          b.zoomCreated = true;
+          b.zoomCreatedAt = new Date();
+          await b.save();
+        }
+      } catch (err) {
+        // Zoom accepted the meeting but persistence failed -> remove the orphan.
+        if (meeting) await deleteZoomMeeting(meeting.zoomMeetingId);
+        console.error('❌ Zoom meeting creation/save failed:', err.message);
+      }
+    }
+
     // Send only when the session is 19-20 minutes away (exactly 20 min out).
     if (minsToStart <= REMINDER_WINDOW_MIN || minsToStart > REMINDER_WINDOW_MAX) continue;
 
@@ -63,7 +106,11 @@ export async function sendReminders() {
       startTime: b.startTime,
       endTime: b.endTime,
       timeZone,
+      duration: `${durationMinutes(b.startTime, b.endTime)} min`,
       meetLink: b.meetLink,
+      zoomJoinUrl: b.zoomJoinUrl,
+      zoomMeetingId: b.zoomMeetingId,
+      zoomPassword: b.zoomPassword,
       notes: b.notes,
       bookingId: b._id.toString(),
     };
@@ -83,6 +130,7 @@ export async function sendReminders() {
     if (allSucceeded) {
       b.reminderSent = true;
       b.reminderSentAt = new Date();
+      b.zoomReminderSent = true; // reminder (with Zoom details) went to both parties
       await b.save();
       if (debug) console.log(`✅ Reminder sent for booking ${b._id.toString()}`);
     }

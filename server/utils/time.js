@@ -62,6 +62,13 @@ export function addDays(dateStr, days, timeZone = 'Asia/Kolkata') {
   return dtf.format(dt);
 }
 
+/** Session length in whole minutes, computed from "HH:mm" start/end times. */
+export function durationMinutes(startTime, endTime) {
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
+
 export function addMinutesToTime(timeStr, minutes) {
   const [h, m] = timeStr.split(':').map(Number);
   const total = h * 60 + m + minutes;
