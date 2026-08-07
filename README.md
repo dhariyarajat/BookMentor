@@ -312,7 +312,7 @@ All endpoints are prefixed with `/api`.
 
 ### Student Dashboard
 
-(Add Screenshot Here)
+![Student dashboard](./assets/StudentDash.png)
 
 ---
 
