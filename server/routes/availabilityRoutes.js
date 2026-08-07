@@ -5,6 +5,8 @@ import {
   addSlot,
   updateSlot,
   deleteSlot,
+  addBlockedDate,
+  deleteBlockedDate,
 } from '../controllers/availabilityController.js';
 import { protect, restrictTo } from '../middlewares/auth.js';
 
@@ -18,5 +20,9 @@ router.get('/me', protect, restrictTo('mentor'), getMyAvailability);
 router.post('/', protect, restrictTo('mentor'), addSlot);
 router.patch('/:id', protect, restrictTo('mentor'), updateSlot);
 router.delete('/:id', protect, restrictTo('mentor'), deleteSlot);
+
+// Time-off (blocked dates)
+router.post('/blocked-dates', protect, restrictTo('mentor'), addBlockedDate);
+router.delete('/blocked-dates/:date', protect, restrictTo('mentor'), deleteBlockedDate);
 
 export default router;

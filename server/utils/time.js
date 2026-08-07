@@ -37,6 +37,17 @@ export function zonedTimeToUtc(dateStr, timeStr, timeZone = 'Asia/Kolkata') {
   return new Date(desiredWall + (desiredWall - wallAtProbe));
 }
 
+/** Returns the current wall-clock time as "HH:mm" in the given timezone. */
+export function nowInZone(timeZone = 'Asia/Kolkata') {
+  const dtf = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  return dtf.format(new Date()); // en-GB with h23 gives HH:mm
+}
+
 /** Returns today's date as "YYYY-MM-DD" in the given timezone. */
 export function todayInZone(timeZone = 'Asia/Kolkata') {
   const dtf = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });

@@ -8,6 +8,9 @@ import Spinner from '../components/Spinner.jsx';
 
 const TIMEZONES = ['Asia/Kolkata', 'Asia/Karachi', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'UTC'];
 
+const SESSION_PRESETS = [15, 20, 30, 45, 60, 75, 90, 120];
+const BUFFER_PRESETS = [0, 5, 10, 15, 20, 25, 30, 45, 60];
+
 export default function MentorProfileEdit() {
   const toast = useToast();
   const navigate = useNavigate();
@@ -20,6 +23,7 @@ export default function MentorProfileEdit() {
     expertise: [],
     experienceYears: 0,
     sessionDuration: 60,
+    breakDuration: 20,
     timeZone: 'Asia/Kolkata',
     location: '',
     languages: [],
@@ -37,6 +41,7 @@ export default function MentorProfileEdit() {
           expertise: m.expertise || [],
           experienceYears: m.experienceYears || 0,
           sessionDuration: m.sessionDuration || 60,
+          breakDuration: m.breakDuration ?? 20,
           timeZone: m.timeZone || 'Asia/Kolkata',
           location: m.location || '',
           languages: m.languages || [],
@@ -115,9 +120,68 @@ export default function MentorProfileEdit() {
           </div>
           <div>
             <label className="label">Session length (min)</label>
-            <select className="input" value={form.sessionDuration} onChange={(e) => setForm({ ...form, sessionDuration: Number(e.target.value) })}>
-              {[30, 45, 60, 90, 120].map((d) => <option key={d} value={d}>{d} minutes</option>)}
-            </select>
+            <div className="flex flex-wrap gap-1.5">
+              {SESSION_PRESETS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setForm({ ...form, sessionDuration: d })}
+                  className={`chip border transition-all duration-150 ${
+                    form.sessionDuration === d
+                      ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min={10}
+                max={240}
+                step={1}
+                className="input !w-28 !py-2"
+                value={form.sessionDuration}
+                onChange={(e) => setForm({ ...form, sessionDuration: Number(e.target.value) })}
+              />
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">10–240 min · step 1</span>
+            </div>
+          </div>
+          <div>
+            <label className="label">Break between sessions (min)</label>
+            <div className="flex flex-wrap gap-1.5">
+              {BUFFER_PRESETS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setForm({ ...form, breakDuration: d })}
+                  className={`chip border transition-all duration-150 ${
+                    form.breakDuration === d
+                      ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                  }`}
+                >
+                  {d === 0 ? 'None' : d}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                max={120}
+                step={1}
+                className="input !w-28 !py-2"
+                value={form.breakDuration}
+                onChange={(e) => setForm({ ...form, breakDuration: Number(e.target.value) })}
+              />
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">0–120 min · step 1</span>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+              Free slots are generated from your working hours with this gap after every session.
+            </p>
           </div>
         </div>
 

@@ -16,7 +16,8 @@ const bookingSchema = new mongoose.Schema(
     notes: { type: String, default: '', maxlength: 500 },
     cancelledBy: { type: String, enum: ['', 'student', 'mentor'], default: '' },
     cancelReason: { type: String, default: '' },
-    reminderSent: { type: Boolean, default: false }, // true once the 10-minute reminder emails are sent
+    reminderSent: { type: Boolean, default: false }, // true once the 20-minute reminder emails are sent
+    reminderSentAt: { type: Date, default: null }, // when the 20-minute reminder was sent
   },
   { timestamps: true }
 );
@@ -33,7 +34,8 @@ bookingSchema.index(
   { unique: true, partialFilterExpression: { status: 'confirmed' } }
 );
 
-// Speeds up the every-minute reminder cron (status + reminderSent + date-range pre-filter).
+// Speeds up the every-minute reminder cron (status + reminderSent + date-range
+// pre-filter) and the daily auto-complete scan (status + date).
 bookingSchema.index({ status: 1, reminderSent: 1, date: 1 });
 
 const Booking = mongoose.model('Booking', bookingSchema);

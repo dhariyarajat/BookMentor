@@ -10,10 +10,11 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
  * click a date to view its slots. Pure frontend — fetches the existing
  * per-date availability endpoint for future days of the visible month.
  */
-export default function CalendarView({ mentorId, timeZone, sessionDuration, selectedDate, onSelectDate }) {
+export default function CalendarView({ mentorId, timeZone, selectedDate, onSelectDate }) {
   const today = todayInZone(timeZone);
   const [view, setView] = useState(() => `${selectedDate.slice(0, 7)}-01`);
   const [slotsByDate, setSlotsByDate] = useState({});
+  const [blockedDates, setBlockedDates] = useState([]); // mentor time-off dates this month
   const [loading, setLoading] = useState(false);
 
   // Keep the visible month in sync when the selected date moves across a month boundary
@@ -36,7 +37,9 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
   useEffect(() => {
     const cacheKey = `${mentorId}|${view.slice(0, 7)}|${today}`;
     if (cacheRef.current[cacheKey]) {
-      setSlotsByDate(cacheRef.current[cacheKey]);
+      const c = cacheRef.current[cacheKey];
+      setSlotsByDate(c.slots);
+      setBlockedDates(c.blocked);
       setLoading(false);
       return undefined;
     }
@@ -44,6 +47,7 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
     const future = monthDates.filter((ds) => ds >= today);
     if (!future.length) {
       setSlotsByDate({});
+      setBlockedDates([]);
       setLoading(false);
       return undefined;
     }
@@ -52,13 +56,16 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
       .then((results) => {
         if (cancelled) return;
         const map = {};
+        const blocked = [];
         results.forEach((r, i) => {
           if (r.status === 'fulfilled') {
             const data = r.value.data;
+            if (data.blocked) {
+              blocked.push(future[i]);
+              return;
+            }
             const starts = buildSlotStarts({
-              ranges: data.ranges,
-              booked: data.booked,
-              sessionDuration: data.sessionDuration || sessionDuration,
+              slots: data.slots,
               date: future[i],
               timeZone: data.timeZone || timeZone,
             });
@@ -68,8 +75,9 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
         // Cap the cache to the last few visited months
         const keys = Object.keys(cacheRef.current);
         if (keys.length >= 8) delete cacheRef.current[keys[0]];
-        cacheRef.current[cacheKey] = map;
+        cacheRef.current[cacheKey] = { slots: map, blocked };
         setSlotsByDate(map);
+        setBlockedDates(blocked);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -77,7 +85,7 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
     return () => {
       cancelled = true;
     };
-  }, [view, mentorId, sessionDuration, timeZone, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, mentorId, timeZone, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prevDisabled = `${y}-${String(m).padStart(2, '0')}` <= today.slice(0, 7);
   const goMonth = (delta) => {
@@ -115,17 +123,26 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
         ))}
         {monthDates.map((ds) => {
           const count = slotsByDate[ds];
+          const isBlocked = blockedDates.includes(ds);
           const isPast = ds < today;
           const isSelected = ds === selectedDate;
           return (
             <button
               key={ds}
-              disabled={isPast}
+              disabled={isPast || isBlocked}
               onClick={() => onSelectDate(ds)}
-              title={count ? `${count} free slot(s) · ${formatDate(ds)}` : formatDate(ds)}
+              title={
+                count
+                  ? `${count} free slot(s) · ${formatDate(ds)}`
+                  : isBlocked
+                  ? `Blocked (time off) · ${formatDate(ds)}`
+                  : formatDate(ds)
+              }
               className={`flex h-9 items-center justify-center rounded-lg text-xs font-semibold transition-all duration-150 ${
                 isSelected
                   ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/25'
+                  : isBlocked
+                  ? 'cursor-not-allowed bg-rose-50 text-rose-300 line-through decoration-rose-200 dark:bg-rose-500/10 dark:text-rose-500/60 dark:decoration-rose-500/30'
                   : count
                   ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25'
                   : isPast
@@ -137,6 +154,9 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
                 {Number(ds.slice(8))}
                 {count > 0 && !isSelected && (
                   <span className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-indigo-500 dark:bg-indigo-400" />
+                )}
+                {isBlocked && (
+                  <span className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-rose-400 dark:bg-rose-500" />
                 )}
               </span>
             </button>
@@ -155,6 +175,14 @@ export default function CalendarView({ mentorId, timeZone, sessionDuration, sele
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-indigo-500" /> Available
             </span>
+            {blockedDates.length > 0 && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-rose-400" /> Blocked
+                </span>
+              </>
+            )}
             <span>·</span>
             <span>Click a date to see its slots</span>
           </>

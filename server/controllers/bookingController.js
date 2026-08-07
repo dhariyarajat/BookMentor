@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 import Booking from '../models/Booking.js';
 import User from '../models/User.js';
 import MentorProfile from '../models/MentorProfile.js';
-import { getSlotsForDate, isSlotInRanges, findSlotConflict, isSlotInPast } from '../services/slotService.js';
-import { addMinutesToTime, zonedTimeToUtc, todayInZone } from '../utils/time.js';
+import { getSlotsForDate, findSlotConflict, isSlotInPast } from '../services/slotService.js';
+import { zonedTimeToUtc, todayInZone } from '../utils/time.js';
 import { sendMail, emailTemplates } from '../services/mailer.js';
 import { createMeetLink, deleteCalendarEvent } from '../services/meeting.js';
 import AppError from '../utils/appError.js';
@@ -77,21 +77,32 @@ export const createBooking = asyncHandler(async (req, res) => {
 
   const timeZone = profile.timeZone || 'Asia/Kolkata';
   const sessionDuration = profile.sessionDuration || 60;
-  const endTime = addMinutesToTime(startTime, sessionDuration);
+  const breakDuration = profile.breakDuration ?? 20;
 
+  if ((profile.blockedDates || []).some((b) => b.date === date)) {
+    throw new AppError('This date is blocked by the mentor (time off) and cannot be booked.', 400);
+  }
   if (isSlotInPast(date, startTime, timeZone)) {
     throw new AppError('This slot is already in the past.', 400);
   }
 
-  const { ranges } = await getSlotsForDate(mentorId, date, timeZone);
-  if (!isSlotInRanges(startTime, endTime, ranges)) {
-    throw new AppError("This slot is not within the mentor's free hours.", 400);
+  // Slots are generated on every request from the mentor's working hours +
+  // session/break duration (which may differ per schedule window), minus
+  // existing bookings. A booking is only valid if it lands exactly on one of
+  // those generated free slots — this guarantees it fits the working hours,
+  // respects the break buffer and never overlaps. The slot's own endTime is
+  // authoritative, so per-window durations are honored automatically.
+  const { slots } = await getSlotsForDate(mentorId, date, timeZone, { sessionDuration, breakDuration });
+  const match = slots.find((s) => s.startTime === startTime);
+  if (!match) {
+    throw new AppError("This slot is not available. Please pick one of the mentor's free slots.", 400);
   }
+  const endTime = match.endTime;
 
-  const conflict = await findSlotConflict(mentorId, date, startTime, endTime);
+  const conflict = await findSlotConflict(mentorId, date, startTime, endTime, null, breakDuration);
   if (conflict) {
     if (conflict.type === 'buffer') {
-      throw new AppError('Every session requires a minimum 20-minute buffer after the previous session.', 409);
+      throw new AppError('This slot is too close to another session. Please pick another time.', 409);
     }
     throw new AppError('This slot was just taken by someone else. Please pick another time.', 409);
   }
@@ -218,19 +229,28 @@ export const rescheduleBooking = asyncHandler(async (req, res) => {
   const profile = await MentorProfile.findOne({ user: booking.mentor._id });
   const timeZone = profile?.timeZone || 'Asia/Kolkata';
   const sessionDuration = profile?.sessionDuration || 60;
-  const newEndTime = addMinutesToTime(newStartTime, sessionDuration);
+  const breakDuration = profile?.breakDuration ?? 20;
 
   if (isSlotInPast(newDate, newStartTime, timeZone)) {
     throw new AppError('The new slot is already in the past.', 400);
   }
-  const { ranges } = await getSlotsForDate(booking.mentor._id, newDate, timeZone);
-  if (!isSlotInRanges(newStartTime, newEndTime, ranges)) {
-    throw new AppError("The new slot is not within the mentor's free hours.", 400);
+
+  if ((profile.blockedDates || []).some((b) => b.date === newDate)) {
+    throw new AppError('This date is blocked by the mentor (time off) and cannot be booked.', 400);
   }
-  const conflict = await findSlotConflict(booking.mentor._id, newDate, newStartTime, newEndTime, booking._id);
+
+  // Same rule as booking: the new time must be a generated free slot (the
+  // booking's own current slot is excluded from the free list automatically).
+  const { slots } = await getSlotsForDate(booking.mentor._id, newDate, timeZone, { sessionDuration, breakDuration });
+  const match = slots.find((s) => s.startTime === newStartTime);
+  if (!match) {
+    throw new AppError("The new slot is not available. Please pick one of the mentor's free slots.", 400);
+  }
+  const newEndTime = match.endTime;
+  const conflict = await findSlotConflict(booking.mentor._id, newDate, newStartTime, newEndTime, booking._id, breakDuration);
   if (conflict) {
     if (conflict.type === 'buffer') {
-      throw new AppError('Every session requires a minimum 20-minute buffer after the previous session.', 409);
+      throw new AppError('The new slot is too close to another session. Please pick another time.', 409);
     }
     throw new AppError('The new slot was just taken. Please pick another time.', 409);
   }
@@ -244,7 +264,8 @@ export const rescheduleBooking = asyncHandler(async (req, res) => {
   booking.endTime = newEndTime;
   booking.timeZone = timeZone;
   booking.rescheduleCount += 1;
-  booking.reminderSent = false; // new time gets a fresh 10-minute reminder
+  booking.reminderSent = false; // new time gets a fresh 20-minute reminder
+  booking.reminderSentAt = null;
   booking.calendarEventId = '';
   booking.meetLink = '';
   await booking.save();

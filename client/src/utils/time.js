@@ -4,6 +4,59 @@ export function todayInZone(timeZone = 'Asia/Kolkata') {
   return dtf.format(new Date());
 }
 
+/** Returns the current wall-clock time as "HH:mm" in the given timezone. */
+export function nowInZone(timeZone = 'Asia/Kolkata') {
+  const dtf = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  return dtf.format(new Date()); // en-GB with h23 gives HH:mm
+}
+
+const toMin = (t) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+const toStr = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+/**
+ * Client-side mirror of the server's slot generator, used for the mentor's
+ * slot preview panel. Produces the exact same grid the server would:
+ * working hours + per-window session/break duration (falling back to the
+ * profile defaults), minus existing bookings and past slots on today.
+ */
+export function generateSlotPreview({ ranges = [], booked = [], sessionDuration = 60, breakDuration = 20, date, timeZone = 'Asia/Kolkata' }) {
+  if (!date || date < todayInZone(timeZone)) return [];
+  const isToday = date === todayInZone(timeZone);
+  const now = isToday ? nowInZone(timeZone) : '';
+  const bookedMins = (booked || []).map((b) => ({ s: toMin(b.startTime), e: toMin(b.endTime) }));
+
+  const slots = [];
+  for (const range of ranges) {
+    const dur = range.sessionDuration ?? sessionDuration;
+    const brk = range.breakDuration ?? breakDuration;
+    // A zero/negative duration would make the grid never advance (infinite loop)
+    if (!(dur > 0)) continue;
+    let current = toMin(range.startTime);
+    const end = toMin(range.endTime);
+    while (current + dur <= end) {
+      const start = current;
+      const stop = current + dur;
+      const startStr = toStr(start);
+      const endStr = toStr(stop);
+      const blocked = bookedMins.some((b) => start < b.e && stop > b.s);
+      if (!blocked && (!isToday || startStr > now)) {
+        slots.push({ startTime: startStr, endTime: endStr });
+      }
+      current = stop + brk;
+    }
+  }
+  return slots;
+}
+
+/** Minutes between two "HH:mm" times. */
+export function timeToMinutes(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
 /** Adds days to a "YYYY-MM-DD" string. */
 export function addDays(dateStr, days, timeZone = 'Asia/Kolkata') {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -32,46 +85,19 @@ export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
 export const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /**
- * Builds a list of bookable slot start-times ("HH:mm") for a mentor's
- * availability on a date. Skips slots that overlap booked ranges or that
- * already passed (when the date is today).
+ * Maps the backend-generated free slots for a mentor on a date to the list of
+ * bookable start-times ("HH:mm") the UI renders. All slot math happens on the
+ * server (working hours + session duration + break duration − existing
+ * bookings), so the client only extracts the start times here.
  */
-export function buildSlotStarts({ ranges, booked, sessionDuration = 60, date, timeZone }) {
+export function buildSlotStarts({ slots, date, timeZone }) {
   // Past dates can never have bookable slots
   if (date < todayInZone(timeZone)) return [];
-  const isToday = date === todayInZone(timeZone);
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-
-  const toMin = (t) => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  };
-  const toStr = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
-
-  // Mandatory 20-minute gap after every session (mirrors the server rule)
-  const BUFFER_MINUTES = 20;
-
-  const starts = [];
-  for (const range of ranges) {
-    const rStart = toMin(range.startTime);
-    const rEnd = toMin(range.endTime);
-    for (let s = rStart; s + sessionDuration <= rEnd; s += sessionDuration) {
-      const e = s + sessionDuration;
-      // skip if it overlaps a booked session or violates the 20-minute buffer
-      const conflicts = booked.some((b) => {
-        const bs = toMin(b.startTime);
-        const be = toMin(b.endTime);
-        if (s < be && e > bs) return true; // overlaps a booked session
-        if (s >= be && s < be + BUFFER_MINUTES) return true; // starts too soon after a booked session
-        if (e <= bs && e > bs - BUFFER_MINUTES) return true; // a booked session starts too soon after this one
-        return false;
-      });
-      if (conflicts) continue;
-      // skip past slots if booking for today
-      if (isToday && s <= nowMin) continue;
-      starts.push(toStr(s));
-    }
+  if (!Array.isArray(slots)) {
+    // The backend always returns a generated `slots` array. If it's missing the
+    // server is running old code — surface it instead of silently hiding slots.
+    console.warn('[availability] API response is missing the generated `slots` array (server may be running old code).', { slots, date });
+    return [];
   }
-  return starts;
+  return slots.map((s) => s.startTime);
 }

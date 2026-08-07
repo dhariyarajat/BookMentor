@@ -3,23 +3,27 @@ import Booking from '../models/Booking.js';
 import { sendMail, emailTemplates } from './mailer.js';
 import { zonedTimeToUtc, todayInZone, addDays } from '../utils/time.js';
 
-// One reminder per booking, sent when the session is ~10 minutes away. The job
-// runs every minute; the reminderSent guard guarantees a single send. The first
-// run inside the window happens at the 10-minute tick; the window stays open
-// until 7 minutes so that a failed send is retried on each subsequent run (per
-// the reliability requirement) instead of being skipped forever.
-const REMINDER_WINDOW_MIN = 7;
-const REMINDER_WINDOW_MAX = 10;
+// One reminder per booking, sent exactly 20 minutes before the session starts.
+// The job runs every minute; the reminderSent guard guarantees a single send.
+// The window is 19 < remaining <= 20 minutes, matching the requirement
+// "remaining time between 19 and 20 minutes". The window is one tick wide, so
+// a failed send is not retried (the reminderSent flag is only set when both
+// emails succeed; failures are logged and the job keeps going).
+const REMINDER_WINDOW_MIN = 19;
+const REMINDER_WINDOW_MAX = 20;
 
 /**
- * Checks every confirmed, un-reminded booking and emails both parties 10
+ * Checks every confirmed, un-reminded booking and emails both parties 20
  * minutes before the session. Exported separately so it can be invoked
  * directly in tests / one-off scripts.
  */
 export async function sendReminders() {
   const now = Date.now();
 
-  // Efficiency pre-filter: a session starting within the next 10 minutes can
+  const debug = process.env.NODE_ENV !== 'production';
+  if (debug) console.log('Reminder check...');
+
+  // Efficiency pre-filter: a session starting within the next 20 minutes can
   // only be dated today/tomorrow in its own timezone, and a booking's local
   // date can differ from Asia/Kolkata by at most ~1 day. Scanning today ±1 day
   // covers every timezone while keeping each run small. (Indexed in Booking.)
@@ -36,12 +40,20 @@ export async function sendReminders() {
     const timeZone = b.timeZone || 'Asia/Kolkata';
     const start = zonedTimeToUtc(b.date, b.startTime, timeZone);
     const minsToStart = (start.getTime() - now) / 60000;
-    // Primary send at ~10 minutes before start; retries while still > 7 min out.
-    if (minsToStart <= REMINDER_WINDOW_MIN || minsToStart > REMINDER_WINDOW_MAX) continue;
 
     const mentor = b.mentor;
     const student = b.student;
+    if (debug) {
+      console.log(`Booking ID: ${b._id.toString()}`);
+      console.log(`Minutes remaining: ${minsToStart.toFixed(1)}`);
+      console.log(`Reminder sent: ${b.reminderSent}`);
+      console.log(`Student email: ${student?.email || 'N/A'}`);
+      console.log(`Mentor email: ${mentor?.email || 'N/A'}`);
+    }
     if (!mentor || !student) continue;
+
+    // Send only when the session is 19-20 minutes away (exactly 20 min out).
+    if (minsToStart <= REMINDER_WINDOW_MIN || minsToStart > REMINDER_WINDOW_MAX) continue;
 
     const data = {
       mentorName: mentor.name,
@@ -67,10 +79,12 @@ export async function sendReminders() {
     }
 
     // Only mark as reminded when BOTH emails went out; otherwise leave the flag
-    // false so the next cron run retries.
+    // false so the next cron run retries while the window is still open.
     if (allSucceeded) {
       b.reminderSent = true;
+      b.reminderSentAt = new Date();
       await b.save();
+      if (debug) console.log(`✅ Reminder sent for booking ${b._id.toString()}`);
     }
   }
 }
@@ -81,12 +95,19 @@ export function startCronJobs() {
     return;
   }
 
-  // Every minute -> send 10-minute reminders for sessions starting soon
+  // Every minute -> send 20-minute reminders for sessions starting soon.
+  // An in-process guard prevents overlapping runs (e.g. slow SMTP), so each
+  // booking is only ever examined by one cron tick at a time.
+  let reminderRunInProgress = false;
   cron.schedule('* * * * *', async () => {
+    if (reminderRunInProgress) return;
+    reminderRunInProgress = true;
     try {
       await sendReminders();
     } catch (err) {
       console.error('❌ Reminder cron error:', err.message);
+    } finally {
+      reminderRunInProgress = false;
     }
   });
 

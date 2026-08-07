@@ -154,9 +154,7 @@ export default function StudentDashboard() {
       const { data } = await client.get(`/availability/mentors/${mentorId}?date=${d}`);
       setReschedSlots(
         buildSlotStarts({
-          ranges: data.ranges,
-          booked: data.booked,
-          sessionDuration: data.sessionDuration,
+          slots: data.slots,
           date: d,
           timeZone: data.timeZone,
         })

@@ -19,6 +19,7 @@ export function toPublicMentor(doc) {
     expertise: p.expertise || [],
     experienceYears: p.experienceYears || 0,
     sessionDuration: p.sessionDuration || 60,
+    breakDuration: p.breakDuration ?? 20,
     timeZone: p.timeZone || 'Asia/Kolkata',
     location: p.location || '',
     languages: p.languages || [],
@@ -38,7 +39,7 @@ export async function computeOnlineStatus(mentorId, timeZone = 'Asia/Kolkata') {
   const today = todayInZone(timeZone);
   const active = await Availability.findOne({
     mentor: mentorId,
-    isActive: true,
+    isActive: { $ne: false }, // legacy docs missing the field still count
     $or: [{ type: 'recurring' }, { type: 'one-off', date: { $gte: today } }],
   }).select('_id').lean();
   return Boolean(active);
@@ -105,7 +106,7 @@ export const getMentors = asyncHandler(async (req, res) => {
         {
           $match: {
             $expr: { $eq: ['$mentor', '$$mentorId'] },
-            isActive: true,
+            isActive: { $ne: false },
             $or: [{ type: 'recurring' }, { type: 'one-off', date: { $gte: todayInZone('Asia/Kolkata') } }],
           },
         },
@@ -172,6 +173,7 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     'expertise',
     'experienceYears',
     'sessionDuration',
+    'breakDuration',
     'timeZone',
     'location',
     'languages',
@@ -180,8 +182,11 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
   }
-  if (updates.sessionDuration && (updates.sessionDuration < 15 || updates.sessionDuration > 240)) {
-    throw new AppError('Session duration must be between 15 and 240 minutes.');
+  if (updates.sessionDuration !== undefined && (updates.sessionDuration < 10 || updates.sessionDuration > 240)) {
+    throw new AppError('Session duration must be between 10 and 240 minutes.');
+  }
+  if (updates.breakDuration !== undefined && (updates.breakDuration < 0 || updates.breakDuration > 120)) {
+    throw new AppError('Break duration must be between 0 and 120 minutes.');
   }
   if (updates.expertise !== undefined) {
     updates.expertise = updates.expertise.map((e) => e.trim()).filter(Boolean);

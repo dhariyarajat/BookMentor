@@ -11,13 +11,7 @@ import Spinner from '../components/Spinner.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Modal from '../components/Modal.jsx';
 import CalendarView from '../components/CalendarView.jsx';
-import { buildSlotStarts, todayInZone, addDays, formatDate, formatTime } from '../utils/time.js';
-
-function addMinutes(timeStr, minutes) {
-  const [h, m] = timeStr.split(':').map(Number);
-  const total = h * 60 + m + minutes;
-  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-}
+import { buildSlotStarts, todayInZone, addDays, formatDate, formatTime, timeToMinutes } from '../utils/time.js';
 
 export default function MentorDetail() {
   const { id } = useParams();
@@ -67,12 +61,10 @@ export default function MentorDetail() {
       setAvail(data);
       setSlotStarts(
         buildSlotStarts({
-          ranges: data.ranges,
-          booked: data.booked,
-          sessionDuration: data.sessionDuration,
+          slots: data.slots,
           date: d,
           timeZone: data.timeZone,
-        })
+        }).map((startTime) => data.slots.find((s) => s.startTime === startTime))
       );
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -129,6 +121,12 @@ export default function MentorDetail() {
   };
 
   if (loading) return <Spinner />;
+  function addMinutes(timeStr, minutes) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const total = h * 60 + m + minutes;
+    return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+
   if (!mentor) {
     return (
       <EmptyState
@@ -142,6 +140,7 @@ export default function MentorDetail() {
 
   const dateLabel = date === todayInZone(mentor.timeZone) ? 'Today' : formatDate(date);
   const isStudent = user?.role === 'student';
+  const selectedSlot = avail?.slots?.find((s) => s.startTime === selected) || null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -220,7 +219,6 @@ export default function MentorDetail() {
             <CalendarView
               mentorId={id}
               timeZone={mentor.timeZone}
-              sessionDuration={mentor.sessionDuration}
               selectedDate={date}
               onSelectDate={setDate}
             />
@@ -262,6 +260,12 @@ export default function MentorDetail() {
 
           {availLoading ? (
             <Spinner className="h-6 w-6" />
+          ) : avail?.blocked ? (
+            <EmptyState
+              icon={CalendarDays}
+              title="Date blocked"
+              subtitle={`${mentor.name.split(' ')[0]} is taking time off on ${dateLabel}. Pick another day.`}
+            />
           ) : slotStarts.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
@@ -271,38 +275,41 @@ export default function MentorDetail() {
           ) : (
             <>
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {slotStarts.map((s) => (
-                  <div
-                    key={s}
-                    className="flex flex-col items-start gap-2 rounded-xl border-2 border-indigo-100 bg-indigo-50/50 px-3 py-2.5 transition-all duration-200 dark:border-indigo-500/30 dark:bg-indigo-500/10"
-                  >
-                    <span className="flex items-center gap-1.5 text-sm font-bold text-indigo-700 dark:text-indigo-300">
-                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <circle cx="10" cy="10" r="7" />
-                        <path d="M10 6v4l2.5 1.5" />
-                      </svg>
-                      {formatTime(s)}
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-indigo-400 dark:text-indigo-400">
-                      {mentor.sessionDuration} min
-                    </span>
-                    {isStudent ? (
-                      <button
-                        onClick={() => openBook(s)}
-                        className="btn-primary w-full !px-2 !py-1.5 !text-xs"
-                      >
-                        Book Slot
-                      </button>
-                    ) : (
-                      <span className="w-full rounded-lg bg-slate-100 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
-                        Available
+                {slotStarts.map((s) => {
+                  const mins = s && s.endTime ? timeToMinutes(s.endTime) - timeToMinutes(s.startTime) : mentor.sessionDuration;
+                  return (
+                    <div
+                      key={s.startTime}
+                      className="flex flex-col items-start gap-2 rounded-xl border-2 border-indigo-100 bg-indigo-50/50 px-3 py-2.5 transition-all duration-200 dark:border-indigo-500/30 dark:bg-indigo-500/10"
+                    >
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-indigo-700 dark:text-indigo-300">
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                          <circle cx="10" cy="10" r="7" />
+                          <path d="M10 6v4l2.5 1.5" />
+                        </svg>
+                        {formatTime(s.startTime)}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-indigo-400 dark:text-indigo-400">
+                        {mins} min
+                      </span>
+                      {isStudent ? (
+                        <button
+                          onClick={() => openBook(s.startTime)}
+                          className="btn-primary w-full !px-2 !py-1.5 !text-xs"
+                        >
+                          Book Slot
+                        </button>
+                      ) : (
+                        <span className="w-full rounded-lg bg-slate-100 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+                          Available
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-                Sessions are {mentor.sessionDuration} minutes long. Slots marked as taken by others are hidden automatically.
+                Session lengths follow the mentor's schedule settings. Slots marked as taken by others are hidden automatically.
               </p>
             </>
           )}
@@ -364,10 +371,13 @@ export default function MentorDetail() {
             <p className="font-semibold text-indigo-800 dark:text-indigo-300">{mentor.name}</p>
             <p className="mt-1.5 flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
               <CalendarDays className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-              {dateLabel} · {formatTime(selected)} – {formatTime(addMinutes(selected, mentor.sessionDuration))}
+              {dateLabel} · {formatTime(selected)} – {formatTime(selectedSlot?.endTime || addMinutes(selected, mentor.sessionDuration))}
             </p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Session duration: {mentor.sessionDuration} min
+              Session duration:{' '}
+              {selectedSlot?.endTime
+                ? `${timeToMinutes(selectedSlot.endTime) - timeToMinutes(selected)} min`
+                : `${mentor.sessionDuration} min`}
             </p>
           </div>
           <label className="label mt-4">Notes for the mentor (optional)</label>

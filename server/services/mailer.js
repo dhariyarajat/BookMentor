@@ -69,6 +69,15 @@ function tableRow(label, value) {
   return `<tr><td style="padding:8px 0;color:#64748b;width:38%;vertical-align:top;">${esc(label)}</td><td style="font-weight:600;">${value}</td></tr>`;
 }
 
+/** Join Meeting CTA — rendered only when a Google Meet link exists. */
+function joinButton(meetLink) {
+  return meetLink
+    ? `<p style="text-align:center;margin:24px 0;">
+        <a href="${esc(meetLink)}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;font-weight:600;padding:13px 32px;border-radius:10px;">Join Meeting</a>
+      </p>`
+    : '';
+}
+
 /**
  * Shared booking summary table. Fields are only rendered when present, so the
  * same builder works for student + mentor + reminder + completion emails.
@@ -173,22 +182,24 @@ export const emailTemplates = {
     ),
   }),
 
-  /** Sent to the student 10 minutes before the session starts. */
+  /** Sent to the student 20 minutes before the session starts. */
   reminder: (b) => ({
-    subject: '⏰ Reminder: Your mentoring session starts in 10 minutes',
+    subject: '⏰ Reminder: Your session starts in 20 minutes',
     html: layout(
       'Upcoming Session Reminder',
-      `<p>Hi <strong>${esc(b.studentName)}</strong>, your mentoring session with <strong>${esc(b.mentorName)}</strong> starts in <strong>10 minutes</strong>.</p>
+      `       <p>Hi <strong>${esc(b.studentName)}</strong>, your mentoring session with <strong>${esc(b.mentorName)}</strong> starts in <strong>20 minutes</strong>.</p>
+       ${joinButton(b.meetLink)}
        ${bookingSummary(b)}`
     ),
   }),
 
-  /** Sent to the mentor 10 minutes before the session starts. */
+  /** Sent to the mentor 20 minutes before the session starts. */
   reminderForMentor: (b) => ({
-    subject: `⏰ Reminder: Your mentoring session with ${b.studentName} starts in 10 minutes`,
+    subject: '⏰ Reminder: Your mentoring session starts in 20 minutes',
     html: layout(
       'Upcoming Session Reminder',
-      `<p>Hi <strong>${esc(b.mentorName)}</strong>, your mentoring session with <strong>${esc(b.studentName)}</strong> starts in <strong>10 minutes</strong>.</p>
+      `       <p>Hi <strong>${esc(b.mentorName)}</strong>, your mentoring session with <strong>${esc(b.studentName)}</strong> starts in <strong>20 minutes</strong>.</p>
+       ${joinButton(b.meetLink)}
        ${bookingSummary(b, b.studentEmail ? [tableRow('Student Email', esc(b.studentEmail))] : [])}`
     ),
   }),
