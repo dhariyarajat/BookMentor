@@ -367,19 +367,7 @@ All endpoints are prefixed with `/api`.
 - Input Validation
 - Duplicate Booking Prevention
 
----
-
-## 🚀 Future Improvements
-
-- Calendar Integration
-- Video Meeting Integration
-- Payment Gateway
-- Mobile App
-- Push Notifications
-- Analytics Dashboard
-
----
-
+-
 ## 📄 License
 
 This project is licensed under the **MIT License**.
